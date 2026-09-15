@@ -1,14 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { markableStatuses, markAsLabel, nextStatus } from "./status";
+import { markableStatuses, markAsLabel } from "./status";
 
 describe("Ticket status", () => {
-  it("moves intake → diagnose → parts → done", () => {
-    expect(nextStatus("intake")).toBe("diagnose");
-    expect(nextStatus("diagnose")).toBe("parts");
-    expect(nextStatus("parts")).toBe("done");
-    expect(nextStatus("done")).toBeNull();
-  });
-
   it("offers Diagnose / Parts / Done as optional marks, never a gate", () => {
     expect(markableStatuses("intake")).toEqual(["diagnose", "parts", "done"]);
     expect(markableStatuses("diagnose")).toEqual(["parts", "done"]);

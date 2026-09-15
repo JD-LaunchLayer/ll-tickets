@@ -9,7 +9,7 @@ LaunchLayer solo-shop **ticket tracking** for Wickford repair (Jordan Duggins). 
 - New ticket: customer, device, freeform symptom, **here now** vs **appointment**
 - Here now opens the ticket immediately (no second intake gate)
 - Appointments use Europe/London shop hours and **never silent midnight** (`00:00` becomes 09:00)
-- Ticket detail: quiet status labels (intake → diagnose → parts → done), **sticky jot composer** so you can type on your phone first, notes/findings timeline under it, optional **Mark as Diagnose / Parts / Done** (never gates)
+- Ticket detail: quiet status labels (intake → diagnose → parts → done), **sticky jot composer** so you can type on your phone first, notes/findings timeline under it, optional **Mark as Diagnose / Parts / Done**
 - More: history and help only
 
 ## What it is not

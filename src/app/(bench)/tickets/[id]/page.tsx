@@ -53,8 +53,7 @@ export default async function TicketDetailPage({
           <summary className="cursor-pointer font-medium">More on this ticket</summary>
           <p className="mt-2 text-slate-600">
             Jot what’s happening. Quiet statuses only: intake → diagnose → parts →
-            done. Diagnose, Parts, and Done chips are optional — they never block a
-            note. History lives in the timeline above. Help is on the More page.
+            done. History lives in the timeline above. Help is on the More page.
           </p>
           <p className="mt-2">
             <Link className="text-[#3b82f6] underline" href="/more">
