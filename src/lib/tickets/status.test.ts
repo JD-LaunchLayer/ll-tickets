@@ -1,12 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { markableStatuses, markAsLabel } from "./status";
+import { patchForBenchState, storedBenchState } from "./status";
 
-describe("Ticket status", () => {
-  it("offers Diagnose / Parts / Done as optional marks, never a gate", () => {
-    expect(markableStatuses("intake")).toEqual(["diagnose", "parts", "done"]);
-    expect(markableStatuses("diagnose")).toEqual(["parts", "done"]);
-    expect(markableStatuses("parts")).toEqual(["diagnose", "done"]);
-    expect(markableStatuses("done")).toEqual(["diagnose", "parts"]);
-    expect(markAsLabel("diagnose")).toBe("Mark as Diagnose");
+describe("Bench state", () => {
+  it("maps stored flags to open / waiting / done", () => {
+    expect(storedBenchState({ status: "intake", waiting: false })).toBe("open");
+    expect(storedBenchState({ status: "parts", waiting: true })).toBe("waiting");
+    expect(storedBenchState({ status: "done", waiting: false })).toBe("done");
+  });
+
+  it("writes waiting without a stage machine", () => {
+    expect(patchForBenchState("waiting", "intake")).toEqual({
+      status: "intake",
+      waiting: true,
+    });
+    expect(patchForBenchState("open", "done")).toEqual({
+      status: "intake",
+      waiting: false,
+    });
+    expect(patchForBenchState("done", "intake")).toEqual({
+      status: "done",
+      waiting: false,
+    });
   });
 });

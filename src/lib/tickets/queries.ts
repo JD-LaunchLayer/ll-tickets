@@ -59,7 +59,7 @@ export async function getTicketDetail(id: string): Promise<TicketDetail | null> 
     .from("ticket_notes")
     .select("id, ticket_id, kind, body, created_by, created_at")
     .eq("ticket_id", id)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false });
 
   if (notesError) throw new Error(notesError.message);
 
@@ -99,17 +99,3 @@ export async function listRecentNotes(limit = 30): Promise<
   });
 }
 
-export async function findCustomerByPhone(phone: string): Promise<Customer | null> {
-  const trimmed = phone.trim();
-  if (!trimmed) return null;
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("customers")
-    .select("id, name, phone, email")
-    .eq("phone", trimmed)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return data;
-}

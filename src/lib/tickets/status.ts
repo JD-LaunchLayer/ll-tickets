@@ -1,21 +1,41 @@
-import { STATUS_LABELS } from "./labels";
-import type { TicketStatus } from "./types";
+import { isFutureShopDay } from "./datetime";
+import type { BenchState, TicketStatus } from "./types";
 
-export const MARK_AS_STATUSES = ["diagnose", "parts", "done"] as const;
-export type MarkAsStatus = (typeof MARK_AS_STATUSES)[number];
-
-export function isMarkAsStatus(value: string): value is MarkAsStatus {
-  return (MARK_AS_STATUSES as readonly string[]).includes(value);
+export function isBenchState(value: string): value is BenchState {
+  return value === "open" || value === "waiting" || value === "done";
 }
 
-export function markableStatuses(current: TicketStatus): MarkAsStatus[] {
-  return MARK_AS_STATUSES.filter((status) => status !== current);
+export function storedBenchState(ticket: {
+  status: TicketStatus;
+  waiting: boolean;
+}): BenchState {
+  if (ticket.status === "done") return "done";
+  if (ticket.waiting) return "waiting";
+  return "open";
 }
 
-export function markAsLabel(status: MarkAsStatus): string {
-  return `Mark as ${STATUS_LABELS[status]}`;
+export function listBenchState(
+  ticket: { status: TicketStatus; waiting: boolean; due_at: string },
+  now = new Date(),
+): BenchState {
+  if (ticket.status === "done") return "done";
+  if (ticket.waiting || isFutureShopDay(new Date(ticket.due_at), now)) {
+    return "waiting";
+  }
+  return "open";
 }
 
-export function markAsNoteBody(status: MarkAsStatus): string {
-  return `Marked as ${STATUS_LABELS[status]}.`;
+export function patchForBenchState(
+  next: BenchState,
+  current: TicketStatus,
+): { status: TicketStatus; waiting: boolean } {
+  if (next === "done") return { status: "done", waiting: false };
+  const openStatus: TicketStatus = current === "done" ? "intake" : current;
+  return { status: openStatus, waiting: next === "waiting" };
+}
+
+export function benchStateNote(state: BenchState): string {
+  if (state === "open") return "Open.";
+  if (state === "waiting") return "Waiting.";
+  return "Done.";
 }

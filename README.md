@@ -1,15 +1,13 @@
 # ll-tickets
 
-LaunchLayer solo-shop **ticket tracking** for Wickford repair (Jordan Duggins). Phone-first bench: jot what is happening on a job, optional status chips. British English.
+LaunchLayer solo-shop **ticket tracking** for Wickford repair (Jordan Duggins). Phone-first: jot what is happening on a job. British English.
 
 ## What it is
 
 - Single LaunchLayer org via Supabase Auth. No shop picker, no multi-tenant UI.
-- Ticket lists: **Today / Active / Waiting / Done**
-- New ticket: customer, device, freeform symptom, **here now** vs **appointment**
-- Here now opens the ticket immediately (no second intake gate)
-- Appointments use Europe/London shop hours and **never silent midnight** (`00:00` becomes 09:00)
-- Ticket detail: quiet status labels (intake → diagnose → parts → done), **sticky jot composer** so you can type on your phone first, notes/findings timeline under it, optional **Mark as Diagnose / Parts / Done**
+- Ticket lists: **Open / Waiting / Done**
+- New ticket: who + what’s wrong. Here now. Opens the sheet immediately.
+- Ticket detail: sticky jot composer in the thumb zone, one note stream (newest first), quiet Open / Waiting / Done picker
 - More: history and help only
 
 ## What it is not
@@ -38,7 +36,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000), sign in, create a **here now** walk-in. You should land on the ticket.
+Open [http://localhost:3000](http://localhost:3000), sign in, create a ticket. You should land on the sheet and be able to type a note.
 
 ```bash
 npm test
@@ -65,11 +63,10 @@ RLS: authenticated users can use the whole bench (one shop). Anon has no access.
 
 | List | Meaning |
 | --- | --- |
-| Today | Due today (London), not done |
-| Active | Not done, not waiting, not a future booking |
+| Open | Not done, not waiting, not a future booking |
 | Waiting | Parked, or a future appointment |
-| Done | Status done |
+| Done | Done |
 
 ## Notes first
 
-Open a ticket and **jot what is happening** (note or finding). That composer is the sticky primary. Diagnose / Parts / Done are a quiet bordered row — optional, never in the way of logging.
+Open a ticket and **jot what is happening**. The composer sits in the thumb zone. Open / Waiting / Done is a quiet picker — never in the way of logging.

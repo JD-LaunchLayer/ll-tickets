@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatShopDateTime, formatShopTime, isSameShopDay } from "@/lib/tickets/datetime";
-import { ARRIVAL_LABELS, STATUS_LABELS } from "@/lib/tickets/labels";
+import { BENCH_STATE_LABELS } from "@/lib/tickets/labels";
+import { listBenchState } from "@/lib/tickets/status";
 import type { TicketListItem } from "@/lib/tickets/types";
 
 export function TicketRow({ ticket }: { ticket: TicketListItem }) {
@@ -10,6 +11,8 @@ export function TicketRow({ ticket }: { ticket: TicketListItem }) {
     : formatShopDateTime(due);
   const name = ticket.customer?.name ?? "Customer";
   const device = ticket.device?.label ?? "Device";
+  const title = !device || device === "Device" ? name : `${name} · ${device}`;
+  const state = listBenchState(ticket);
 
   return (
     <Link
@@ -18,17 +21,12 @@ export function TicketRow({ ticket }: { ticket: TicketListItem }) {
     >
       <div className="flex items-baseline justify-between gap-2">
         <p className="truncate text-sm font-semibold text-slate-900">
-          {name} · {device}
+          {title}
         </p>
         <p className="shrink-0 text-xs text-slate-500">{when}</p>
       </div>
       <p className="mt-1 line-clamp-2 text-sm text-slate-700">{ticket.symptom}</p>
-      <p className="mt-1 text-xs text-slate-500">
-        {STATUS_LABELS[ticket.status]}
-        {ticket.waiting ? " · waiting" : ""}
-        {" · "}
-        {ARRIVAL_LABELS[ticket.arrival_kind]}
-      </p>
+      <p className="mt-1 text-xs text-slate-500">{BENCH_STATE_LABELS[state]}</p>
     </Link>
   );
 }
