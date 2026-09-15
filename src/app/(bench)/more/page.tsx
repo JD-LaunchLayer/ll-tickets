@@ -21,8 +21,9 @@ export default async function MorePage() {
             use the next shop slot in Europe/London, never a silent midnight.
           </p>
           <p className="text-sm text-slate-700">
-            Statuses are labels only: intake, diagnose, parts, done. One Do next on each
-            ticket. Lists: Today, Active, Waiting, Done.
+            Statuses are labels only: intake, diagnose, parts, done. Jot a note first;
+            Diagnose / Parts / Done and waiting chips are optional. Lists: Today, Active,
+            Waiting, Done.
           </p>
         </section>
 

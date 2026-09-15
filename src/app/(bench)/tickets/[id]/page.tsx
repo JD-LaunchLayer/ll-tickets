@@ -1,4 +1,4 @@
-import { DoNextPanel } from "@/app/(bench)/tickets/[id]/do-next-panel";
+import { NoteComposer } from "@/app/(bench)/tickets/[id]/note-composer";
 import { NotesTimeline } from "@/app/(bench)/tickets/[id]/notes-timeline";
 import { BenchHeader } from "@/components/bench-header";
 import { formatShopDateTime } from "@/lib/tickets/datetime";
@@ -44,7 +44,7 @@ export default async function TicketDetailPage({
           ) : null}
         </section>
 
-        <DoNextPanel ticketId={ticket.id} status={ticket.status} check={check} />
+        <NoteComposer ticketId={ticket.id} status={ticket.status} check={check} />
 
         <section className="space-y-2">
           <h2 className="text-sm font-semibold text-slate-900">Notes and findings</h2>
@@ -54,8 +54,9 @@ export default async function TicketDetailPage({
         <details className="segment p-3 text-sm text-slate-700">
           <summary className="cursor-pointer font-medium">More on this ticket</summary>
           <p className="mt-2 text-slate-600">
-            Quiet statuses only: intake → diagnose → parts → done. History lives in the
-            timeline above. Help is on the More page.
+            Jot first. Quiet statuses only: intake → diagnose → parts → done. Diagnose,
+            Parts, and Done chips are optional — they never block a note. History lives
+            in the timeline above. Help is on the More page.
           </p>
           <p className="mt-2">
             <Link className="text-[#3b82f6] underline" href="/more">

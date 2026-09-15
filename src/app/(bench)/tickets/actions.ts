@@ -6,13 +6,12 @@ import { requireBenchSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { dueAtForCreate, formatShopDateTime } from "@/lib/tickets/datetime";
 import {
-  advanceLabel,
   getDoNext,
-  nextStatus,
+  isMarkAsStatus,
+  markAsNoteBody,
   outcomeById,
   outcomeNoteBody,
 } from "@/lib/tickets/do-next";
-import { STATUS_LABELS } from "@/lib/tickets/labels";
 import { findCustomerByPhone } from "@/lib/tickets/queries";
 import {
   isArrivalKind,
@@ -191,10 +190,14 @@ export async function applyDoNextOutcome(formData: FormData): Promise<void> {
   revalidatePath("/more");
 }
 
-export async function advanceTicketStatus(formData: FormData): Promise<void> {
+export async function markTicketStatus(formData: FormData): Promise<void> {
   const session = await requireBenchSession();
   const supabase = await createClient();
   const ticketId = requiredText(formData, "ticket_id");
+  const statusRaw = requiredText(formData, "status");
+  if (!isMarkAsStatus(statusRaw)) {
+    throw new Error("Choose Diagnose, Parts, or Done.");
+  }
 
   const { data: ticket, error } = await supabase
     .from("tickets")
@@ -203,12 +206,12 @@ export async function advanceTicketStatus(formData: FormData): Promise<void> {
     .single();
   if (error || !ticket) throw new Error(error?.message ?? "Ticket not found.");
   if (!isTicketStatus(ticket.status)) throw new Error("Unknown status.");
+  if (ticket.status === statusRaw) return;
 
-  const next = nextStatus(ticket.status);
-  if (!next) throw new Error("Already done.");
-
-  const patch: { status: typeof next; waiting?: boolean } = { status: next };
-  if (next === "done") patch.waiting = false;
+  const patch: { status: typeof statusRaw; waiting: boolean } = {
+    status: statusRaw,
+    waiting: false,
+  };
 
   const { error: updateError } = await supabase
     .from("tickets")
@@ -219,13 +222,14 @@ export async function advanceTicketStatus(formData: FormData): Promise<void> {
   const { error: noteError } = await supabase.from("ticket_notes").insert({
     ticket_id: ticketId,
     kind: "status",
-    body: advanceLabel(ticket.status) ?? `Status: ${STATUS_LABELS[next]}`,
+    body: markAsNoteBody(statusRaw),
     created_by: session.user.id,
   });
   if (noteError) throw new Error(noteError.message);
 
   revalidatePath(`/tickets/${ticketId}`);
   revalidatePath("/tickets");
+  revalidatePath("/more");
 }
 
 export async function signOut(): Promise<void> {

@@ -86,8 +86,30 @@ export function outcomeNoteBody(check: DoNextCheck, outcome: DoNextOutcome): str
   return bits.join(" ");
 }
 
-export function advanceLabel(current: TicketStatus): string | null {
-  const next = nextStatus(current);
-  if (!next) return null;
-  return `Advance to ${STATUS_LABELS[next]}`;
+export const MARK_AS_STATUSES = ["diagnose", "parts", "done"] as const;
+export type MarkAsStatus = (typeof MARK_AS_STATUSES)[number];
+
+export function isMarkAsStatus(value: string): value is MarkAsStatus {
+  return (MARK_AS_STATUSES as readonly string[]).includes(value);
+}
+
+export function markableStatuses(current: TicketStatus): MarkAsStatus[] {
+  return MARK_AS_STATUSES.filter((status) => status !== current);
+}
+
+export function markAsLabel(status: MarkAsStatus): string {
+  return `Mark as ${STATUS_LABELS[status]}`;
+}
+
+export function markAsNoteBody(status: MarkAsStatus): string {
+  return `Marked as ${STATUS_LABELS[status]}.`;
+}
+
+/** Waiting / resume chips — status marks cover Diagnose / Parts / Done. */
+export function extraDoNextOutcomes(check: DoNextCheck | null): DoNextOutcome[] {
+  if (!check) return [];
+  return check.outcomes.filter((outcome) => {
+    if (outcome.status && isMarkAsStatus(outcome.status)) return false;
+    return true;
+  });
 }
