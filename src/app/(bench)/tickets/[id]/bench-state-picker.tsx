@@ -35,7 +35,7 @@ export function BenchStatePicker({
 }) {
   return (
     <div
-      aria-label="Ticket state"
+      aria-label="Where this job is"
       className="grid grid-cols-3 gap-1 rounded-lg border border-slate-200 bg-white p-1"
     >
       {BENCH_STATES.map((item) => (

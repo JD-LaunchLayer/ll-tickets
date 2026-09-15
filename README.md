@@ -1,18 +1,18 @@
 # ll-tickets
 
-LaunchLayer solo-shop **ticket tracking** for Wickford repair (Jordan Duggins). Phone-first: jot what is happening on a job. British English.
+LaunchLayer solo-shop **ticket tracking** for Wickford repair (Jordan Duggins). Phone-first workbench: flick jobs by **where I’m at · findings · next**. British English.
 
 ## What it is
 
 - Single LaunchLayer org via Supabase Auth. No shop picker, no multi-tenant UI.
-- Ticket lists: **Open / Waiting / Done**
+- Ticket lists: **Open / Waiting / Done**. Each row: who · device · quiet state · latest finding · next only if a jot earned it (`next:` / `todo:`).
 - New ticket: who + what’s wrong. Here now. Opens the sheet immediately.
-- Ticket detail: sticky jot composer in the thumb zone, one note stream (newest first), quiet Open / Waiting / Done picker
+- Ticket sheet: quiet Open / Waiting / Done, newest-first findings, optional next under the meta, sticky jot composer (`autoFocus`) with Send in the thumb zone.
 - More: history and help only
 
 ## What it is not
 
-Billing, FreeAgent, SumUp, multi-shop/SaaS, Focus/Duolingo chrome, cyan TODAY heroes, Suggestions rails, QA/stress protocols, VisionFlow, Twilio, PC builder, marketing site.
+Billing, FreeAgent, SumUp, multi-shop/SaaS, Focus/Duolingo chrome, cyan TODAY heroes, Suggestions rails, QA/stress protocols, VisionFlow, Twilio, PC builder, marketing site, chat UI, parts/intake chip trees.
 
 ## Stack
 
@@ -36,7 +36,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000), sign in, create a ticket. You should land on the sheet and be able to type a note.
+Open [http://localhost:3000](http://localhost:3000), sign in, create a ticket. You should land on the sheet with the composer focused.
 
 ```bash
 npm test
@@ -55,7 +55,7 @@ Minimal kernels only:
 - `customers` — name, phone, email
 - `devices` — label, serial
 - `tickets` — symptom, status, waiting, here-now vs appointment, `due_at`
-- `ticket_notes` — note / finding / check outcome / status
+- `ticket_notes` — one jot stream (note / finding / check outcome / status)
 
 RLS: authenticated users can use the whole bench (one shop). Anon has no access.
 
@@ -67,6 +67,8 @@ RLS: authenticated users can use the whole bench (one shop). Anon has no access.
 | Waiting | Parked, or a future appointment |
 | Done | Done |
 
-## Notes first
+Rows are for flicking: tell jobs apart from the latest finding without opening each. A quiet **next** line appears only when a jot includes `next:` or `todo:`.
 
-Open a ticket and **jot what is happening**, as light as sending a text. The composer sits in the thumb zone with Send in one tap. Open / Waiting / Done is a quiet picker — never in the way of logging.
+## Findings
+
+Open a ticket and **jot what is happening**. The composer focuses on open and sits in the thumb zone with Send in one tap. Findings are newest first. Open / Waiting / Done is a quiet where-at picker — never a Do-next hero.

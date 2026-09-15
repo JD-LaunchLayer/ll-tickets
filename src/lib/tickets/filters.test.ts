@@ -18,6 +18,8 @@ function ticket(
     arrival_kind: "walk_in",
     customer: { id: "c1", name: "Smith", phone: null, email: null },
     device: { id: "d1", customer_id: "c1", label: "iPhone", serial: null },
+    latest_finding: overrides.latest_finding ?? null,
+    next_move: overrides.next_move ?? null,
     ...overrides,
   };
 }
