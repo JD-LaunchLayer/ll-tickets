@@ -8,7 +8,7 @@ function Send({ children }: { children: ReactNode }) {
   const { pending } = useFormStatus();
   return (
     <button type="submit" disabled={pending} className="tech-btn-primary">
-      {children}
+      {pending ? "Sending…" : children}
     </button>
   );
 }
@@ -21,8 +21,10 @@ export function NoteComposer({ ticketId }: { ticketId: string }) {
         <textarea
           name="body"
           required
-          rows={3}
-          className="min-h-[5.5rem] w-full rounded-lg border border-slate-200 px-3 py-3 text-base"
+          rows={4}
+          autoFocus
+          enterKeyHint="send"
+          className="min-h-[7rem] w-full rounded-lg border border-slate-200 px-3 py-3 text-base"
           placeholder="What's happening on this job…"
           aria-label="Note"
         />

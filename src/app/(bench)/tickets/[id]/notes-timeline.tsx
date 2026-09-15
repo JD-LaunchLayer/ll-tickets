@@ -18,7 +18,7 @@ export function NotesTimeline({ notes }: { notes: TicketNote[] }) {
     <ol className="space-y-2">
       {newestFirst.map((note) =>
         isSystemLine(note.kind) ? (
-          <li key={note.id} className="px-1">
+          <li key={note.id}>
             <p className="text-xs text-slate-500">
               {note.body}
               {" · "}
@@ -28,16 +28,11 @@ export function NotesTimeline({ notes }: { notes: TicketNote[] }) {
             </p>
           </li>
         ) : (
-          <li key={note.id} className="segment p-3">
-            <time
-              className="text-xs text-slate-500"
-              dateTime={note.created_at}
-            >
+          <li key={note.id} className="rounded-lg bg-white px-3 py-2">
+            <p className="whitespace-pre-wrap text-base text-slate-900">{note.body}</p>
+            <time className="mt-1 block text-xs text-slate-500" dateTime={note.created_at}>
               {formatShopDateTime(new Date(note.created_at))}
             </time>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-slate-800">
-              {note.body}
-            </p>
           </li>
         ),
       )}

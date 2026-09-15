@@ -69,4 +69,4 @@ RLS: authenticated users can use the whole bench (one shop). Anon has no access.
 
 ## Notes first
 
-Open a ticket and **jot what is happening**. The composer sits in the thumb zone. Open / Waiting / Done is a quiet picker — never in the way of logging.
+Open a ticket and **jot what is happening**, as light as sending a text. The composer sits in the thumb zone with Send in one tap. Open / Waiting / Done is a quiet picker — never in the way of logging.
