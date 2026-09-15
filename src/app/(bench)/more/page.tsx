@@ -17,8 +17,9 @@ export default async function MorePage() {
         <section className="segment space-y-2 p-3">
           <h2 className="text-sm font-semibold text-slate-900">Help</h2>
           <p className="text-sm text-slate-700">
-            Open a ticket with a name and what’s wrong. It lands on the sheet so you
-            can jot from your phone. Lists: Open, Waiting, Done.
+            Open a ticket with a name and what’s wrong. Lists show who, the latest
+            finding, and a next line only if a jot starts with next: or todo:. The
+            sheet is where you’re at, findings, and a box to type.
           </p>
         </section>
 

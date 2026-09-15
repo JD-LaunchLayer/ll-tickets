@@ -53,6 +53,8 @@ export type TicketNote = {
 export type TicketListItem = Ticket & {
   customer: Customer | null;
   device: Device | null;
+  latest_finding: string | null;
+  next_move: string | null;
 };
 
 export type TicketDetail = TicketListItem & {

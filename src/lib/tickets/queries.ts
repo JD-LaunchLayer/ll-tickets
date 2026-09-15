@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { filterTickets } from "@/lib/tickets/filters";
+import { threadFromNotes } from "@/lib/tickets/findings";
 import type {
   Customer,
   Device,
@@ -39,9 +40,48 @@ export async function listTickets(view: ListView): Promise<TicketListItem[]> {
     ...row,
     customer: asCustomer(row.customer),
     device: asDevice(row.device),
+    latest_finding: null,
+    next_move: null,
   }));
 
-  return filterTickets(tickets, view);
+  const filtered = filterTickets(tickets, view);
+  return attachThread(filtered);
+}
+
+function notesByTicketId(notes: TicketNote[]): Map<string, TicketNote[]> {
+  const grouped = new Map<string, TicketNote[]>();
+  for (const note of notes) {
+    const list = grouped.get(note.ticket_id) ?? [];
+    list.push(note);
+    grouped.set(note.ticket_id, list);
+  }
+  return grouped;
+}
+
+async function attachThread(tickets: TicketListItem[]): Promise<TicketListItem[]> {
+  if (tickets.length === 0) return tickets;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("ticket_notes")
+    .select("id, ticket_id, kind, body, created_by, created_at")
+    .in(
+      "ticket_id",
+      tickets.map((ticket) => ticket.id),
+    )
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+
+  const grouped = notesByTicketId((data ?? []) as TicketNote[]);
+  return tickets.map((ticket) => {
+    const thread = threadFromNotes(grouped.get(ticket.id) ?? [], ticket.symptom);
+    return {
+      ...ticket,
+      latest_finding: thread.finding,
+      next_move: thread.nextMove,
+    };
+  });
 }
 
 export async function getTicketDetail(id: string): Promise<TicketDetail | null> {
@@ -63,11 +103,16 @@ export async function getTicketDetail(id: string): Promise<TicketDetail | null> 
 
   if (notesError) throw new Error(notesError.message);
 
+  const ticketNotes = (notes ?? []) as TicketNote[];
+  const thread = threadFromNotes(ticketNotes, data.symptom);
+
   return {
     ...data,
     customer: asCustomer(data.customer),
     device: asDevice(data.device),
-    notes: (notes ?? []) as TicketNote[],
+    notes: ticketNotes,
+    latest_finding: thread.finding,
+    next_move: thread.nextMove,
   };
 }
 
