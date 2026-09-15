@@ -6,7 +6,7 @@ export function ListTabs({ view }: { view: ListView }) {
   return (
     <nav
       aria-label="Ticket lists"
-      className="grid grid-cols-4 gap-1 rounded-lg border border-slate-200 bg-white p-1"
+      className="grid grid-cols-3 gap-1 rounded-lg border border-slate-200 bg-white p-1"
     >
       {LIST_VIEWS.map((item) => {
         const active = item === view;

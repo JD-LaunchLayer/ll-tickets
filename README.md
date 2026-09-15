@@ -1,15 +1,13 @@
 # ll-tickets
 
-LaunchLayer solo-shop **ticket tracking** for Wickford repair (Jordan Duggins). Phone-first bench: tickets, notes, one Do next. British English.
+LaunchLayer solo-shop **ticket tracking** for Wickford repair (Jordan Duggins). Phone-first: jot what is happening on a job. British English.
 
 ## What it is
 
 - Single LaunchLayer org via Supabase Auth. No shop picker, no multi-tenant UI.
-- Ticket lists: **Today / Active / Waiting / Done**
-- New ticket: customer, device, freeform symptom, **here now** vs **appointment**
-- Here now opens the ticket immediately (no second intake gate)
-- Appointments use Europe/London shop hours and **never silent midnight** (`00:00` becomes 09:00)
-- Ticket detail: quiet status labels (intake → diagnose → parts → done), notes/findings timeline, **one Do next** primary
+- Ticket lists: **Open / Waiting / Done**
+- New ticket: who + what’s wrong. Here now. Opens the sheet immediately.
+- Ticket detail: sticky jot composer in the thumb zone, one note stream (newest first), quiet Open / Waiting / Done picker
 - More: history and help only
 
 ## What it is not
@@ -38,7 +36,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000), sign in, create a **here now** walk-in. You should land on the ticket.
+Open [http://localhost:3000](http://localhost:3000), sign in, create a ticket. You should land on the sheet and be able to type a note.
 
 ```bash
 npm test
@@ -65,11 +63,10 @@ RLS: authenticated users can use the whole bench (one shop). Anon has no access.
 
 | List | Meaning |
 | --- | --- |
-| Today | Due today (London), not done |
-| Active | Not done, not waiting, not a future booking |
+| Open | Not done, not waiting, not a future booking |
 | Waiting | Parked, or a future appointment |
-| Done | Status done |
+| Done | Done |
 
-## Do next
+## Notes first
 
-If the job is open, the sticky primary is **next + why + outcome chips**. If there is no check (done), the primary is **add note**, with quiet status advance when a next status exists. Add-note from an open check lives under a disclosure, not a second banner.
+Open a ticket and **jot what is happening**, as light as sending a text. The composer sits in the thumb zone with Send in one tap. Open / Waiting / Done is a quiet picker — never in the way of logging.

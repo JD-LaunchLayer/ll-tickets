@@ -8,8 +8,7 @@ import { isListView, type ListView } from "@/lib/tickets/types";
 export const dynamic = "force-dynamic";
 
 const EMPTY: Record<ListView, string> = {
-  today: "Nothing due today.",
-  active: "No active tickets.",
+  open: "No open tickets.",
   waiting: "Nothing waiting.",
   done: "No done tickets yet.",
 };
@@ -20,7 +19,7 @@ export default async function TicketsPage({
   searchParams: Promise<{ view?: string }>;
 }) {
   const params = await searchParams;
-  const view: ListView = isListView(params.view) ? params.view : "today";
+  const view: ListView = isListView(params.view) ? params.view : "open";
   const tickets = await listTickets(view);
 
   return (

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { zonedLocalToUtc } from "./datetime";
 import { filterTickets, matchesListView } from "./filters";
+import { listBenchState } from "./status";
 import type { TicketListItem } from "./types";
 
 function ticket(
@@ -31,52 +32,31 @@ const tuesdayMorning = zonedLocalToUtc({
 });
 
 describe("list filters", () => {
-  it("Today is due today and not done", () => {
-    const today = ticket({
+  it("Open is not done and not waiting", () => {
+    const open = ticket({
       status: "intake",
       waiting: false,
       due_at: tuesdayMorning.toISOString(),
     });
-    const tomorrow = ticket({
-      id: "t2",
-      status: "intake",
-      waiting: false,
-      due_at: zonedLocalToUtc({
-        year: 2026,
-        month: 9,
-        day: 16,
-        hour: 10,
-        minute: 0,
-        second: 0,
-      }).toISOString(),
-    });
-    const doneToday = ticket({
-      id: "t3",
-      status: "done",
-      waiting: false,
-      due_at: tuesdayMorning.toISOString(),
-    });
-    expect(matchesListView(today, "today", tuesdayMorning)).toBe(true);
-    expect(matchesListView(tomorrow, "today", tuesdayMorning)).toBe(false);
-    expect(matchesListView(doneToday, "today", tuesdayMorning)).toBe(false);
-    expect(matchesListView(doneToday, "done", tuesdayMorning)).toBe(true);
-  });
-
-  it("Active excludes waiting and done", () => {
-    const active = ticket({
-      status: "diagnose",
-      waiting: false,
-      due_at: tuesdayMorning.toISOString(),
-    });
-    const waiting = ticket({
+    const parked = ticket({
       id: "w",
       status: "parts",
       waiting: true,
       due_at: tuesdayMorning.toISOString(),
     });
-    expect(matchesListView(active, "active", tuesdayMorning)).toBe(true);
-    expect(matchesListView(waiting, "active", tuesdayMorning)).toBe(false);
-    expect(matchesListView(waiting, "waiting", tuesdayMorning)).toBe(true);
+    const done = ticket({
+      id: "d",
+      status: "done",
+      waiting: false,
+      due_at: tuesdayMorning.toISOString(),
+    });
+    expect(matchesListView(open, "open", tuesdayMorning)).toBe(true);
+    expect(matchesListView(parked, "open", tuesdayMorning)).toBe(false);
+    expect(matchesListView(parked, "waiting", tuesdayMorning)).toBe(true);
+    expect(matchesListView(done, "done", tuesdayMorning)).toBe(true);
+    expect(matchesListView(done, "open", tuesdayMorning)).toBe(false);
+    expect(listBenchState(open, tuesdayMorning)).toBe("open");
+    expect(listBenchState(parked, tuesdayMorning)).toBe("waiting");
   });
 
   it("future appointments sit in Waiting", () => {
@@ -94,7 +74,7 @@ describe("list filters", () => {
       }).toISOString(),
     });
     expect(matchesListView(booked, "waiting", tuesdayMorning)).toBe(true);
-    expect(matchesListView(booked, "active", tuesdayMorning)).toBe(false);
-    expect(filterTickets([booked], "today", tuesdayMorning)).toHaveLength(0);
+    expect(matchesListView(booked, "open", tuesdayMorning)).toBe(false);
+    expect(filterTickets([booked], "open", tuesdayMorning)).toHaveLength(0);
   });
 });

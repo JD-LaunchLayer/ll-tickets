@@ -6,6 +6,7 @@ type BenchHeaderProps = {
   backHref?: string;
   newTicket?: boolean;
   moreHref?: string;
+  more?: boolean;
 };
 
 export function BenchHeader({
@@ -13,6 +14,7 @@ export function BenchHeader({
   backHref,
   newTicket = false,
   moreHref = "/more",
+  more = true,
 }: BenchHeaderProps) {
   return (
     <header className="border-b border-slate-200 bg-white">
@@ -43,12 +45,14 @@ export function BenchHeader({
               New
             </Link>
           ) : null}
-          <Link
-            href={moreHref}
-            className="rounded-lg border border-slate-200 px-2 py-1 text-sm text-slate-700"
-          >
-            More
-          </Link>
+          {more ? (
+            <Link
+              href={moreHref}
+              className="rounded-lg border border-slate-200 px-2 py-1 text-sm text-slate-700"
+            >
+              More
+            </Link>
+          ) : null}
         </div>
       </div>
     </header>

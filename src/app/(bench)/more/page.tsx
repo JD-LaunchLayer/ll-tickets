@@ -17,12 +17,8 @@ export default async function MorePage() {
         <section className="segment space-y-2 p-3">
           <h2 className="text-sm font-semibold text-slate-900">Help</h2>
           <p className="text-sm text-slate-700">
-            Here now opens the ticket immediately — no second intake gate. Appointments
-            use the next shop slot in Europe/London, never a silent midnight.
-          </p>
-          <p className="text-sm text-slate-700">
-            Statuses are labels only: intake, diagnose, parts, done. One Do next on each
-            ticket. Lists: Today, Active, Waiting, Done.
+            Open a ticket with a name and what’s wrong. It lands on the sheet so you
+            can jot from your phone. Lists: Open, Waiting, Done.
           </p>
         </section>
 

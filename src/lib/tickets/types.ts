@@ -1,11 +1,14 @@
 export const TICKET_STATUSES = ["intake", "diagnose", "parts", "done"] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
+export const BENCH_STATES = ["open", "waiting", "done"] as const;
+export type BenchState = (typeof BENCH_STATES)[number];
+
 export const ARRIVAL_KINDS = ["walk_in", "appointment"] as const;
 export type ArrivalKind = (typeof ARRIVAL_KINDS)[number];
 
-export const LIST_VIEWS = ["today", "active", "waiting", "done"] as const;
-export type ListView = (typeof LIST_VIEWS)[number];
+export const LIST_VIEWS = BENCH_STATES;
+export type ListView = BenchState;
 
 export const NOTE_KINDS = ["note", "finding", "check_outcome", "status"] as const;
 export type NoteKind = (typeof NOTE_KINDS)[number];

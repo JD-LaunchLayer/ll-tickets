@@ -1,4 +1,4 @@
-import { isFutureShopDay, isSameShopDay } from "./datetime";
+import { isFutureShopDay } from "./datetime";
 import type { ListView, TicketListItem } from "./types";
 
 export function matchesListView(
@@ -9,18 +9,12 @@ export function matchesListView(
   const due = new Date(ticket.due_at);
   const done = ticket.status === "done";
 
-  switch (view) {
-    case "today":
-      return !done && isSameShopDay(due, now);
-    case "active":
-      return !done && !ticket.waiting && !isFutureShopDay(due, now);
-    case "waiting":
-      return !done && (ticket.waiting || isFutureShopDay(due, now));
-    case "done":
-      return done;
-    default:
-      return false;
-  }
+  if (view === "done") return done;
+  if (done) return false;
+
+  const waiting = ticket.waiting || isFutureShopDay(due, now);
+  if (view === "waiting") return waiting;
+  return !waiting;
 }
 
 export function sortTickets(
