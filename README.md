@@ -1,6 +1,6 @@
 # ll-tickets
 
-LaunchLayer solo-shop **ticket tracking** for Wickford repair (Jordan Duggins). Phone-first bench: tickets, notes, optional status chips. British English.
+LaunchLayer solo-shop **ticket tracking** for Wickford repair (Jordan Duggins). Phone-first bench: jot what is happening on a job, optional status chips. British English.
 
 ## What it is
 
@@ -9,7 +9,7 @@ LaunchLayer solo-shop **ticket tracking** for Wickford repair (Jordan Duggins). 
 - New ticket: customer, device, freeform symptom, **here now** vs **appointment**
 - Here now opens the ticket immediately (no second intake gate)
 - Appointments use Europe/London shop hours and **never silent midnight** (`00:00` becomes 09:00)
-- Ticket detail: quiet status labels (intake → diagnose → parts → done), **sticky jot composer** first, notes/findings timeline under it, optional **Mark as Diagnose / Parts / Done** and waiting chips (never gates)
+- Ticket detail: quiet status labels (intake → diagnose → parts → done), **sticky jot composer** so you can type on your phone first, notes/findings timeline under it, optional **Mark as Diagnose / Parts / Done** (never gates)
 - More: history and help only
 
 ## What it is not
@@ -72,4 +72,4 @@ RLS: authenticated users can use the whole bench (one shop). Anon has no access.
 
 ## Notes first
 
-The sticky primary on a ticket is **jot a note or finding**. Diagnose / Parts / Done are bordered optional accelerators. If the job is still open, waiting/resume chips may appear in that same quiet row — they never hide the composer.
+Open a ticket and **jot what is happening** (note or finding). That composer is the sticky primary. Diagnose / Parts / Done are a quiet bordered row — optional, never in the way of logging.

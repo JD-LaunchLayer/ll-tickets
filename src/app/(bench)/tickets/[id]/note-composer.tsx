@@ -2,17 +2,8 @@
 
 import type { ReactNode } from "react";
 import { useFormStatus } from "react-dom";
-import {
-  addTicketNote,
-  applyDoNextOutcome,
-  markTicketStatus,
-} from "@/app/(bench)/tickets/actions";
-import {
-  extraDoNextOutcomes,
-  markAsLabel,
-  markableStatuses,
-  type DoNextCheck,
-} from "@/lib/tickets/do-next";
+import { addTicketNote, markTicketStatus } from "@/app/(bench)/tickets/actions";
+import { markAsLabel, markableStatuses } from "@/lib/tickets/status";
 import type { TicketStatus } from "@/lib/tickets/types";
 
 function PrimarySubmit({ children }: { children: ReactNode }) {
@@ -40,14 +31,11 @@ function QuietChip({ children }: { children: ReactNode }) {
 export function NoteComposer({
   ticketId,
   status,
-  check,
 }: {
   ticketId: string;
   status: TicketStatus;
-  check: DoNextCheck | null;
 }) {
   const marks = markableStatuses(status);
-  const extras = extraDoNextOutcomes(check);
 
   return (
     <>
@@ -55,20 +43,13 @@ export function NoteComposer({
         <h2 className="text-sm font-semibold text-slate-900">Jot a note</h2>
         <NoteForm ticketId={ticketId} />
       </section>
-      {marks.length > 0 || extras.length > 0 ? (
-        <div className="flex flex-wrap gap-2" aria-label="Optional accelerators">
+      {marks.length > 0 ? (
+        <div className="flex flex-wrap gap-2" aria-label="Optional status">
           {marks.map((mark) => (
             <form key={mark} action={markTicketStatus}>
               <input type="hidden" name="ticket_id" value={ticketId} />
               <input type="hidden" name="status" value={mark} />
               <QuietChip>{markAsLabel(mark)}</QuietChip>
-            </form>
-          ))}
-          {extras.map((outcome) => (
-            <form key={outcome.id} action={applyDoNextOutcome}>
-              <input type="hidden" name="ticket_id" value={ticketId} />
-              <input type="hidden" name="outcome_id" value={outcome.id} />
-              <QuietChip>{outcome.label}</QuietChip>
             </form>
           ))}
         </div>
@@ -106,7 +87,7 @@ function NoteForm({ ticketId }: { ticketId: string }) {
         required
         rows={3}
         className="min-h-[5.5rem] w-full rounded-lg border border-slate-200 px-3 py-3 text-base"
-        placeholder="What you saw, what you tried…"
+        placeholder="What’s happening on this job…"
         aria-label="Note or finding"
       />
       <PrimarySubmit>Save note</PrimarySubmit>

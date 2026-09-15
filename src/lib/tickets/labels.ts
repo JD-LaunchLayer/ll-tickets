@@ -22,7 +22,7 @@ export const ARRIVAL_LABELS: Record<ArrivalKind, string> = {
 export const NOTE_KIND_LABELS: Record<NoteKind, string> = {
   note: "Note",
   finding: "Finding",
-  check_outcome: "Do next",
+  check_outcome: "Update",
   status: "Status",
 };
 

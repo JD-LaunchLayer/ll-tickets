@@ -6,12 +6,9 @@ import { requireBenchSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { dueAtForCreate, formatShopDateTime } from "@/lib/tickets/datetime";
 import {
-  getDoNext,
   isMarkAsStatus,
   markAsNoteBody,
-  outcomeById,
-  outcomeNoteBody,
-} from "@/lib/tickets/do-next";
+} from "@/lib/tickets/status";
 import { findCustomerByPhone } from "@/lib/tickets/queries";
 import {
   isArrivalKind,
@@ -133,57 +130,6 @@ export async function addTicketNote(formData: FormData): Promise<void> {
     created_by: session.user.id,
   });
   if (error) throw new Error(error.message);
-
-  revalidatePath(`/tickets/${ticketId}`);
-  revalidatePath("/tickets");
-  revalidatePath("/more");
-}
-
-export async function applyDoNextOutcome(formData: FormData): Promise<void> {
-  const session = await requireBenchSession();
-  const supabase = await createClient();
-  const ticketId = requiredText(formData, "ticket_id");
-  const outcomeId = requiredText(formData, "outcome_id");
-
-  const { data: ticket, error } = await supabase
-    .from("tickets")
-    .select("id, status, waiting")
-    .eq("id", ticketId)
-    .single();
-  if (error || !ticket) throw new Error(error?.message ?? "Ticket not found.");
-
-  const check = getDoNext(ticket);
-  const outcome = outcomeById(check, outcomeId);
-  if (!check || !outcome) throw new Error("That Do next action is no longer available.");
-
-  const patch: {
-    status?: typeof ticket.status;
-    waiting?: boolean;
-  } = {};
-  if (outcome.status) patch.status = outcome.status;
-  if (typeof outcome.waiting === "boolean") patch.waiting = outcome.waiting;
-  if (outcome.status === "done") patch.waiting = false;
-
-  if (Object.keys(patch).length > 0) {
-    const { error: updateError } = await supabase
-      .from("tickets")
-      .update(patch)
-      .eq("id", ticketId);
-    if (updateError) throw new Error(updateError.message);
-  }
-
-  const extra = optionalText(formData, "body");
-  const body = extra
-    ? `${outcomeNoteBody(check, outcome)} ${extra}`
-    : outcomeNoteBody(check, outcome);
-
-  const { error: noteError } = await supabase.from("ticket_notes").insert({
-    ticket_id: ticketId,
-    kind: "check_outcome",
-    body,
-    created_by: session.user.id,
-  });
-  if (noteError) throw new Error(noteError.message);
 
   revalidatePath(`/tickets/${ticketId}`);
   revalidatePath("/tickets");

@@ -2,7 +2,6 @@ import { NoteComposer } from "@/app/(bench)/tickets/[id]/note-composer";
 import { NotesTimeline } from "@/app/(bench)/tickets/[id]/notes-timeline";
 import { BenchHeader } from "@/components/bench-header";
 import { formatShopDateTime } from "@/lib/tickets/datetime";
-import { getDoNext } from "@/lib/tickets/do-next";
 import { ARRIVAL_LABELS, STATUS_LABELS } from "@/lib/tickets/labels";
 import { getTicketDetail } from "@/lib/tickets/queries";
 import Link from "next/link";
@@ -19,7 +18,6 @@ export default async function TicketDetailPage({
   const ticket = await getTicketDetail(id);
   if (!ticket) notFound();
 
-  const check = getDoNext(ticket);
   const name = ticket.customer?.name ?? "Customer";
   const device = ticket.device?.label ?? "Device";
 
@@ -44,7 +42,7 @@ export default async function TicketDetailPage({
           ) : null}
         </section>
 
-        <NoteComposer ticketId={ticket.id} status={ticket.status} check={check} />
+        <NoteComposer ticketId={ticket.id} status={ticket.status} />
 
         <section className="space-y-2">
           <h2 className="text-sm font-semibold text-slate-900">Notes and findings</h2>
@@ -54,9 +52,9 @@ export default async function TicketDetailPage({
         <details className="segment p-3 text-sm text-slate-700">
           <summary className="cursor-pointer font-medium">More on this ticket</summary>
           <p className="mt-2 text-slate-600">
-            Jot first. Quiet statuses only: intake → diagnose → parts → done. Diagnose,
-            Parts, and Done chips are optional — they never block a note. History lives
-            in the timeline above. Help is on the More page.
+            Jot what’s happening. Quiet statuses only: intake → diagnose → parts →
+            done. Diagnose, Parts, and Done chips are optional — they never block a
+            note. History lives in the timeline above. Help is on the More page.
           </p>
           <p className="mt-2">
             <Link className="text-[#3b82f6] underline" href="/more">
