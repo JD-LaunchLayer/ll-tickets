@@ -1,10 +1,68 @@
 import { readFileSync } from "fs";
+import { inflateSync } from "zlib";
 import { describe, expect, it } from "vitest";
 import { splitReply } from "@/lib/assistant/reply";
-import { BRAND, contrast } from "@/lib/brand";
+import { BRAND, contrast, LOGO_CROP } from "@/lib/brand";
 import { emptyListMessage, filterActiveJobs, parseBenchView } from "@/lib/bench/filters";
 import { tabCurrent } from "@/lib/bench/tabs";
 import type { BenchListRow } from "@/lib/bench/jobs";
+
+function readPng(path: string): { width: number; height: number; channels: number; pixels: Uint8Array } {
+  const data = readFileSync(path);
+  let pos = 8;
+  let width = 0;
+  let height = 0;
+  let colorType = 0;
+  const idat: Buffer[] = [];
+  while (pos < data.length) {
+    const length = data.readUInt32BE(pos);
+    const type = data.toString("ascii", pos + 4, pos + 8);
+    const chunk = data.subarray(pos + 8, pos + 8 + length);
+    pos += 12 + length;
+    if (type === "IHDR") {
+      width = chunk.readUInt32BE(0);
+      height = chunk.readUInt32BE(4);
+      colorType = chunk[9];
+    } else if (type === "IDAT") {
+      idat.push(chunk);
+    } else if (type === "IEND") {
+      break;
+    }
+  }
+  const channels = colorType === 6 ? 4 : 3;
+  const raw = inflateSync(Buffer.concat(idat));
+  const stride = width * channels;
+  const pixels = new Uint8Array(width * height * channels);
+  let i = 0;
+  const prev = new Uint8Array(stride);
+  const row = new Uint8Array(stride);
+  const paeth = (a: number, b: number, c: number) => {
+    const p = a + b - c;
+    const pa = Math.abs(p - a);
+    const pb = Math.abs(p - b);
+    const pc = Math.abs(p - c);
+    if (pa <= pb && pa <= pc) return a;
+    return pb <= pc ? b : c;
+  };
+  for (let y = 0; y < height; y += 1) {
+    const filter = raw[i];
+    i += 1;
+    row.set(raw.subarray(i, i + stride));
+    i += stride;
+    for (let x = 0; x < stride; x += 1) {
+      const left = x >= channels ? row[x - channels] : 0;
+      const up = prev[x];
+      const ul = x >= channels ? prev[x - channels] : 0;
+      if (filter === 1) row[x] = (row[x] + left) & 255;
+      else if (filter === 2) row[x] = (row[x] + up) & 255;
+      else if (filter === 3) row[x] = (row[x] + ((left + up) >> 1)) & 255;
+      else if (filter === 4) row[x] = (row[x] + paeth(left, up, ul)) & 255;
+    }
+    pixels.set(row, y * stride);
+    prev.set(row);
+  }
+  return { width, height, channels, pixels };
+}
 
 function pngSize(path: string): { width: number; height: number } {
   const bytes = readFileSync(path);
@@ -34,7 +92,10 @@ describe("phone view", () => {
       [BRAND.accentDeep, BRAND.accentSoft],
       [BRAND.accentDeep, BRAND.accentTint],
       [BRAND.accent, BRAND.surface],
-      [BRAND.accentLight, BRAND.header],
+      [BRAND.accent, BRAND.header],
+      [BRAND.ink, BRAND.header],
+      [BRAND.ink, BRAND.logoPlate],
+      [BRAND.accentLight, BRAND.darkHeader],
       [BRAND.darkInk, BRAND.darkSurface],
       [BRAND.darkBody, BRAND.darkSurface],
       [BRAND.darkMuted, BRAND.darkSurface],
@@ -57,6 +118,21 @@ describe("phone view", () => {
     expect(pngSize("public/icons/icon-maskable-512.png")).toEqual({ width: 512, height: 512 });
     expect(pngSize("public/icons/apple-touch-icon.png")).toEqual({ width: 180, height: 180 });
 
+    const css = readFileSync("src/app/globals.css", "utf8");
+    expect(css).toContain("--header: #fbfefe");
+    expect(css).toContain("--logo-plate: #fbfefe");
+    expect(css).toContain("--header: #000000");
+    expect(css).toMatch(/\.header-action\s*\{[^}]*color:\s*var\(--link\)/);
+    expect(css).toMatch(/\.brand-home\s*\{[^}]*background:\s*var\(--logo-plate\)/);
+    expect(css).not.toContain("408 / 280");
+
+    const layout = readFileSync("src/app/layout.tsx", "utf8");
+    expect(layout).toContain("BRAND.themeColor");
+    expect(layout).toContain("BRAND.themeColorDark");
+    expect(layout).toContain('media: "(prefers-color-scheme: light)"');
+    expect(layout).toContain('media: "(prefers-color-scheme: dark)"');
+    expect(layout).toContain('statusBarStyle: "default"');
+
     const manifest = readFileSync("src/app/manifest.ts", "utf8");
     expect(manifest).toContain('purpose: "any"');
     expect(manifest).toContain('purpose: "maskable"');
@@ -68,7 +144,6 @@ describe("phone view", () => {
     expect(manifest).toContain('lang: "en-GB"');
     expect(manifest).toContain('display: "standalone"');
 
-    const css = readFileSync("src/app/globals.css", "utf8");
     expect(css).toContain("safe-area-inset-top");
     expect(css).toContain("safe-area-inset-bottom");
     expect(css).toContain("safe-area-inset-left");
@@ -79,6 +154,67 @@ describe("phone view", () => {
     expect(css).toContain("min-width: 48px");
     for (const token of ["#0b2029", "#364851", "#49585f", "#0048b0", "#b7d2ff", "#137738", "#b02a2d"]) {
       expect(css).toContain(token);
+    }
+  });
+
+  it("crops the lockup onto the light plate so Launch and Layer both sit on a light ground", () => {
+    expect(BRAND.header).toBe(BRAND.surface);
+    expect(BRAND.themeColor).toBe(BRAND.header);
+    expect(BRAND.logoPlate).toBe("#FBFEFE");
+    expect(BRAND.themeColorDark).toBe(BRAND.darkHeader);
+
+    const logo = readPng("public/brand/image-0961fde4.png");
+    const { x, y, width, height } = LOGO_CROP;
+    let black = 0;
+    let blue = 0;
+    let outside = 0;
+    for (let py = 0; py < logo.height; py += 1) {
+      for (let px = 0; px < logo.width; px += 1) {
+        const i = (py * logo.width + px) * 4;
+        const r = logo.pixels[i];
+        const g = logo.pixels[i + 1];
+        const b = logo.pixels[i + 2];
+        const a = logo.pixels[i + 3];
+        if (a < 16) continue;
+        const inside = px >= x && px < x + width && py >= y && py < y + height;
+        if (!inside) {
+          outside += 1;
+          continue;
+        }
+        if (r + g + b < 80) black += 1;
+        else if (b > r) blue += 1;
+      }
+    }
+    expect(black).toBeGreaterThan(7000);
+    expect(blue).toBeGreaterThan(15000);
+    expect(outside).toBe(0);
+
+    const mark = readFileSync("src/app/bench/brand-mark.tsx", "utf8");
+    expect(mark).toContain("LOGO_CROP");
+    expect(mark).toContain("/brand/image-0961fde4.png");
+    expect(mark).not.toContain("logo-dark");
+    expect(mark).not.toContain("invert");
+  });
+
+  it("keeps the node mark on a white icon, where the blue has AA contrast", () => {
+    for (const path of [
+      "public/icons/icon-192.png",
+      "public/icons/icon-512.png",
+      "public/icons/icon-maskable-512.png",
+      "public/icons/apple-touch-icon.png",
+    ]) {
+      const icon = readPng(path);
+      const corner = icon.pixels.subarray(0, icon.channels);
+      expect([corner[0], corner[1], corner[2]]).toEqual([255, 255, 255]);
+      const cx = Math.floor(icon.width / 2);
+      const cy = Math.floor(icon.height / 2);
+      const i = (cy * icon.width + cx) * icon.channels;
+      const r = icon.pixels[i];
+      const g = icon.pixels[i + 1];
+      const b = icon.pixels[i + 2];
+      expect(b).toBeGreaterThan(r + 40);
+      const hex = `#${[r, g, b].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+      expect(contrast(hex, "#FFFFFF")).toBeGreaterThanOrEqual(4.5);
     }
   });
 

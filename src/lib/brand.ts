@@ -15,7 +15,12 @@ export const BRAND = {
   success: "#137738",
   danger: "#B02A2D",
   accentLight: "#B7D2FF",
-  header: "#000000",
+  /** Light header. Matches `surface` so the black "Launch" ink reads. */
+  header: "#FBFEFE",
+  /** Dark-scheme header. The logo sits on `logoPlate`, not on this colour. */
+  darkHeader: "#000000",
+  /** Fixed light plate. Must not follow the dark-scheme surface token. */
+  logoPlate: "#FBFEFE",
   onAccent: "#FBFEFE",
   darkInk: "#F7FBFC",
   darkBody: "#D5E3E8",
@@ -25,7 +30,21 @@ export const BRAND = {
   darkCanvas: "#0B2029",
   darkDanger: "#F0B4B5",
   darkSuccess: "#8FDBA8",
-  themeColor: "#000000",
+  themeColor: "#FBFEFE",
+  themeColorDark: "#000000",
+} as const;
+
+/**
+ * Tight crop of `public/brand/image-0961fde4.png` (640×307), in source pixels.
+ * Drops the empty transparent margin and keeps Launch, the node, and Layer.
+ */
+export const LOGO_CROP = {
+  x: 22,
+  y: 30,
+  width: 595,
+  height: 269,
+  sourceWidth: 640,
+  sourceHeight: 307,
 } as const;
 
 function channel(hex: string, index: number): number {
