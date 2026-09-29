@@ -213,6 +213,21 @@ export type Database = {
         };
         Relationships: [];
       };
+      assistant_daily_usage: {
+        Row: {
+          usage_date: string;
+          message_count: number;
+        };
+        Insert: {
+          usage_date: string;
+          message_count?: number;
+        };
+        Update: {
+          usage_date?: string;
+          message_count?: number;
+        };
+        Relationships: [];
+      };
       action_audit: {
         Row: {
           id: string;
@@ -247,6 +262,10 @@ export type Database = {
       purge_expired_job_photos: {
         Args: Record<string, never>;
         Returns: number;
+      };
+      consume_assistant_message: {
+        Args: { p_day: string; p_limit: number };
+        Returns: boolean;
       };
     };
     Enums: {

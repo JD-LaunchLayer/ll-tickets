@@ -31,7 +31,7 @@ export default async function JobPage({ params }: { params: Promise<{ ref: strin
   }
 
   return (
-    <BenchShell title={job.ref} backHref="/">
+    <BenchShell title={job.ref} backHref="/" askHref={`/jobs/${job.ref}/ask`}>
       <header className="segment px-4 py-3">
         <p className="text-lg font-semibold">{job.customerName}</p>
         <p className="text-base text-slate-800">{job.deviceLabel}</p>

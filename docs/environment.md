@@ -14,12 +14,17 @@ Nothing in this list is a real secret. Put real values in Vercel → Project →
 | `GOOGLE_CALENDAR_ID` | Server | Calendar id. Often `something@group.calendar.google.com` or the calendar’s email |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Server | The whole service-account JSON key, as one line. Not committed |
 | `CRON_SECRET` | Server | Bearer token for `GET /api/cron/purge-photos` |
+| `OPENAI_API_KEY` | Server only | Ask the record. If it is unset, the phone shows “Assistant is not set up yet.” Never expose it to the browser or the GPT. Never commit a real key |
+| `ASSISTANT_MODEL` | Server | Optional. Model name for Ask the record. Default `gpt-4.1-mini` |
+| `ASSISTANT_DAILY_MESSAGE_LIMIT` | Server | Optional. In-app assistant messages per UTC day. Default 200. The count is in `assistant_daily_usage`. The chat itself is not stored |
 
 `VERCEL_URL` is set by Vercel. If `NEXT_PUBLIC_SITE_URL` is empty, the OpenAPI server URL falls back to it, then to `http://localhost:3000`.
 
 ## Database
 
 Run `supabase/migrations/20260929120000_jobs.sql` in the Supabase SQL editor (or `supabase db push` if you use the CLI). It **drops** the earlier `customers`, `devices`, `tickets`, and `ticket_notes` tables. Do not run it if those tables hold anything you need.
+
+Then run `supabase/migrations/20260929190000_assistant_daily_usage.sql`. It adds `assistant_daily_usage` and `consume_assistant_message`, owner-only, for the in-app assistant’s daily limit. It does not store the conversation. Ask the record will not count messages until this has been applied. The Action API does not use this table.
 
 Then insert the owner, with the same address as `OWNER_EMAIL`:
 
@@ -83,4 +88,6 @@ select id, public from storage.buckets where id = 'job-photos';
 - `add_note` may update `next_move`. It does not change status or the job price. A part amount on a note stays on the note.
 - The Action API rate limit defaults to 60 requests a minute per server instance. It is not shared across instances.
 - Signed photo URLs last 5 minutes. The Action API does not issue them. The phone view does, for the signed-in owner only.
+- Ask the record uses the owner’s signed-in session and the same validation as the actions. It does not call `create_collection_event`. The GPT and `GET /openapi.json` are unchanged.
+- The assistant’s daily count is one row per UTC day. A reply is at most 400 output tokens, the model sees the last 12 messages, and a turn stops after 4 tool steps. Chat text stays in the browser.
 - Idempotency stores a successful response only. A failed write releases the id so the same retry can proceed. Two identical in-flight writes: the second is told the first is still in progress.
