@@ -16,7 +16,8 @@
   --success: #137738;
   --danger: #b02a2d;
   --accent-light: #b7d2ff;
-  --header: #000000;
+  --header: #fbfefe;
+  --logo-plate: #fbfefe;
   --on-accent: #fbfefe;
   --link: #0048b0;
   --danger-text: #b02a2d;
@@ -36,6 +37,7 @@
     --canvas: #0b2029;
     --accent-soft: #16324a;
     --accent-tint: #102830;
+    --header: #000000;
     --link: #b7d2ff;
     --danger-text: #f0b4b5;
     --success-text: #8fdba8;
@@ -105,6 +107,8 @@ h2,
 .app-header {
   flex: none;
   background: var(--header);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 2px rgb(11 32 41 / 6%);
   padding-top: env(safe-area-inset-top);
   padding-right: max(0.75rem, env(safe-area-inset-right));
   padding-left: max(0.75rem, env(safe-area-inset-left));
@@ -120,27 +124,35 @@ h2,
 
 .brand-home {
   display: flex;
+  flex: 0 1 11rem;
   align-items: center;
+  justify-content: center;
   min-height: 48px;
   min-width: 48px;
+  border-radius: 999px;
 }
 
 .brand-logo {
   display: block;
   position: relative;
-  height: 72px;
-  width: calc(72px * 408 / 280);
+  width: 100%;
+  aspect-ratio: 595 / 269;
   overflow: hidden;
   flex: none;
 }
 
 .brand-logo img {
   position: absolute;
-  height: calc(72px * 307 / 280);
-  width: calc(72px * 640 / 280);
   max-width: none;
-  left: calc(72px * -216 / 280);
-  top: calc(72px * -24 / 280);
+}
+
+/* Dark header stays black. A light plate keeps the black "Launch" ink
+   readable without inverting the file or recolouring anti-aliased edges. */
+@media (prefers-color-scheme: dark) {
+  .brand-home {
+    background: var(--logo-plate);
+    padding: 0.3rem 0.55rem;
+  }
 }
 
 .header-action,
@@ -163,7 +175,8 @@ h2,
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: var(--accent-light);
+  color: var(--link);
+  flex: none;
   font-family: var(--font-space), var(--font-inter), ui-sans-serif, sans-serif;
   font-size: 1rem;
   font-weight: 600;

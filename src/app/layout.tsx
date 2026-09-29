@@ -19,7 +19,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: BRAND.themeColor,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: BRAND.themeColor },
+    { media: "(prefers-color-scheme: dark)", color: BRAND.themeColorDark },
+  ],
 };
 
 export const metadata: Metadata = {
@@ -29,7 +32,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Jobs",
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
   },
   icons: {
     icon: [
