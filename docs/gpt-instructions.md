@@ -26,6 +26,7 @@ Status
 - Status values: new, diagnosing, waiting_on_parts, waiting_on_customer, ready, collected, closed_no_repair.
 - closed_no_repair means he declined the quote, it was uneconomic, or the job was abandoned.
 - Active work is everything except collected and closed_no_repair.
+- Sending the current status to set_status is allowed when you only need to update price, next_move, access_given, backup_position, or follow_up_at.
 
 Price
 - Never invent a price.

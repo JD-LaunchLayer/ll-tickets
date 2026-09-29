@@ -44,7 +44,7 @@
       "get": {
         "operationId": "find_jobs",
         "summary": "Find jobs",
-        "description": "Use to decide which job Jordan means, or to list work in progress. Filter by customer_name, device, ref, or status. If status is omitted, only active jobs are returned (everything except collected and closed_no_repair). Read each summary_line before choosing a job. The phone number is never returned.",
+        "description": "Decide which job Jordan means, or list work in progress. Filter by customer_name, device, ref, or status. Omit status for active jobs only (not collected or closed_no_repair). Read each summary_line before choosing. Phone number is never returned.",
         "parameters": [
           {
             "name": "customer_name",
@@ -180,7 +180,7 @@
       "post": {
         "operationId": "set_status",
         "summary": "Set status or price",
-        "description": "Use only after Jordan has confirmed a status change. Also use this to record a price or that a fixed price was agreed: price_basis quote is only for an agreed fixed price, and the server sets price_agreed_at when you do not send one. Sending the current status is allowed when you only need to update price, next_move, access_given, backup_position, or follow_up_at.",
+        "description": "Statuses: new, diagnosing, waiting_on_parts, waiting_on_customer, ready, collected, closed_no_repair. price_basis estimate is not binding; quote is an agreed fixed price (server sets price_agreed_at if omitted). Same status may update other fields.",
         "requestBody": {
           "required": true,
           "content": {
