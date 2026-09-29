@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { RetryLink } from "@/app/bench/retry-link";
 import { BenchShell } from "@/app/bench/shell";
 import { ownerContext } from "@/lib/bench/context";
 import { listBenchJobs, type BenchListRow } from "@/lib/bench/jobs";
+import { jobListPanel } from "@/lib/bench/list-panel";
 import { STATUS_LABELS } from "@/lib/jobs/domain";
 
 export const dynamic = "force-dynamic";
@@ -53,16 +55,24 @@ export default async function Home({
   const { repo } = await ownerContext();
   let active: BenchListRow[] = [];
   let finished: BenchListRow[] = [];
-  let loadError: string | null = null;
+  let failed = false;
+  let listError: unknown = null;
   try {
     const listed = await listBenchJobs(repo, { search: q, includeFinished });
     active = listed.active;
     finished = listed.finished;
-  } catch {
-    loadError = "Could not load jobs.";
+  } catch (error) {
+    failed = true;
+    listError = error;
   }
 
-  const empty = active.length === 0 && finished.length === 0;
+  const panel = jobListPanel({
+    failed,
+    error: listError,
+    activeCount: active.length,
+    finishedCount: finished.length,
+    search: q,
+  });
 
   return (
     <BenchShell title="Jobs" showSignOut>
@@ -93,24 +103,22 @@ export default async function Home({
       <Link href="/jobs/new" className="tech-btn-secondary">
         New job
       </Link>
-      {loadError ? (
-        <p className="text-sm text-red-700" role="alert">
-          {loadError}
-        </p>
+      {panel.kind === "error" ? (
+        <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3" role="alert">
+          <p className="text-sm font-semibold text-red-900">{panel.message}</p>
+          {panel.reason ? <p className="mt-1 text-sm text-red-900">{panel.reason}</p> : null}
+          <RetryLink href={listHref(includeFinished, q)} />
+        </div>
       ) : null}
-      {!loadError && empty ? (
-        <p className="text-sm text-slate-600">
-          {q.trim() ? "Nothing matches that search." : "No jobs on the bench."}
-        </p>
-      ) : null}
-      {active.length > 0 ? (
+      {panel.kind === "empty" ? <p className="text-sm text-slate-600">{panel.message}</p> : null}
+      {panel.kind === "jobs" && active.length > 0 ? (
         <ul className="flex flex-col gap-2">
           {active.map((row) => (
             <JobRow key={row.ref} row={row} />
           ))}
         </ul>
       ) : null}
-      {finished.length > 0 ? (
+      {panel.kind === "jobs" && finished.length > 0 ? (
         <section className="flex flex-col gap-2">
           <h2 className="text-sm font-semibold text-slate-600">Finished</h2>
           <ul className="flex flex-col gap-2">

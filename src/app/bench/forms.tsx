@@ -9,17 +9,18 @@ import {
   setStatusAction,
   addPhotoAction,
 } from "@/app/bench/actions";
-import { idleForm } from "@/lib/bench/form-state";
+import { idleForm, type FormState } from "@/lib/bench/form-state";
 import { JOB_STATUSES, NOTE_TAGS, NOTE_TAG_LABELS, STATUS_LABELS, type JobStatus } from "@/lib/jobs/domain";
 import { compressPhoto } from "@/lib/photos/compress";
 import { PHOTO_MAX_BYTES } from "@/lib/photos/path";
 
-function FieldError({ message }: { message: string | null }) {
+function FieldError({ message, reason }: { message: string | null; reason?: string | null }) {
   if (!message) return null;
   return (
-    <p className="text-sm text-red-700" role="alert">
-      {message}
-    </p>
+    <div className="space-y-1" role="alert">
+      <p className="text-sm text-red-700">{message}</p>
+      {reason ? <p className="text-sm text-red-700">{reason}</p> : null}
+    </div>
   );
 }
 
@@ -47,7 +48,7 @@ export function CreateJobForm() {
           Optional. Shown only here, as a tap-to-call link. The GPT never sees it.
         </span>
       </label>
-      <FieldError message={state.error} />
+      <FieldError message={state.error} reason={state.reason} />
       <button className="tech-btn-primary" type="submit" disabled={pending}>
         {pending ? "Creating…" : "Create job"}
       </button>
@@ -80,7 +81,7 @@ export function NoteForm({ jobRef, noteCount }: { jobRef: string; noteCount: num
         <span className="field-label">Next move</span>
         <input name="next_move" maxLength={180} autoComplete="off" placeholder="Leave blank to keep it" />
       </label>
-      <FieldError message={state.error} />
+      <FieldError message={state.error} reason={state.reason} />
       <button className="tech-btn-primary" type="submit" disabled={pending}>
         {pending ? "Filing…" : "File note"}
       </button>
@@ -112,7 +113,7 @@ export function StatusPicker({ jobRef, status }: { jobRef: string; status: JobSt
           ))}
         </select>
       </label>
-      <FieldError message={state.error} />
+      <FieldError message={state.error} reason={state.reason} />
     </form>
   );
 }
@@ -127,7 +128,7 @@ export function NextMoveForm({ jobRef, nextMove }: { jobRef: string; nextMove: s
         <span className="field-label">Next move</span>
         <input name="next_move" required maxLength={180} defaultValue={nextMove} autoComplete="off" />
       </label>
-      <FieldError message={state.error} />
+      <FieldError message={state.error} reason={state.reason} />
       <button className="tech-btn-secondary" type="submit" disabled={pending}>
         {pending ? "Saving…" : "Save next move"}
       </button>
@@ -137,17 +138,17 @@ export function NextMoveForm({ jobRef, nextMove }: { jobRef: string; nextMove: s
 
 export function PhotoForm({ jobRef }: { jobRef: string }) {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<FormState>(idleForm);
   const [pending, setPending] = useState(false);
 
   async function onFile(file: File | undefined) {
     if (!file) return;
     setPending(true);
-    setError(null);
+    setFailure(idleForm);
     try {
       const blob = await compressPhoto(file);
       if (blob.size > PHOTO_MAX_BYTES) {
-        setError("That photo is too large.");
+        setFailure({ error: "That photo is too large.", reason: null });
         return;
       }
       const body = new FormData();
@@ -155,12 +156,12 @@ export function PhotoForm({ jobRef }: { jobRef: string }) {
       body.set("photo", new File([blob], "photo.jpg", { type: "image/jpeg" }));
       const result = await addPhotoAction(body);
       if (result.error) {
-        setError(result.error);
+        setFailure(result);
         return;
       }
       router.refresh();
     } catch {
-      setError("That photo could not be prepared. Try a JPEG or PNG.");
+      setFailure({ error: "That photo could not be prepared. Try a JPEG or PNG.", reason: null });
     } finally {
       setPending(false);
     }
@@ -182,7 +183,7 @@ export function PhotoForm({ jobRef }: { jobRef: string }) {
           }}
         />
       </label>
-      <FieldError message={error} />
+      <FieldError message={failure.error} reason={failure.reason} />
       <noscript>
         <p className="text-sm text-slate-600">Adding a photo needs JavaScript so location data can be removed first.</p>
       </noscript>

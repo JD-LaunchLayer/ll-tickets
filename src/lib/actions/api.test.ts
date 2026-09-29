@@ -4,6 +4,7 @@ import type { CalendarEventInput, CalendarPort } from "@/lib/calendar/types";
 import { handleAction, type ActionOperation, type ActionRuntime } from "@/lib/actions/handle";
 import { collectKeys } from "@/lib/jobs/domain";
 import { MemoryJobRepository } from "@/lib/jobs/memory-repository";
+import { RepositoryError } from "@/lib/jobs/repository-error";
 
 const API_KEY = "test-action-key-0123456789";
 const PHONE = "07700900123";
@@ -509,6 +510,93 @@ describe("action API", () => {
     expect(response.status).toBe(500);
     expect(calendar.deleted).toEqual(["evt_1"]);
     expect(repo.jobs[0]?.collectionAt).toBeNull();
+  });
+
+  it("never puts a postgres code or message in an action error body", async () => {
+    const leaked = {
+      code: "42501",
+      message: "permission denied for table jobs",
+      details: "policy jobs_owner_select",
+      hint: "Check private.is_owner",
+    };
+    const token = "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.signaturepart";
+    const boom = () => {
+      throw new RepositoryError("Could not create the job.", {
+        ...leaked,
+        message: `${leaked.message} ${token}`,
+      });
+    };
+
+    async function assertNoPostgres(response: Response, body: unknown) {
+      expect(response.status).toBe(500);
+      const text = await response.text();
+      expect(text).not.toContain(leaked.code);
+      expect(text).not.toContain(leaked.message);
+      expect(text).not.toContain(leaked.details);
+      expect(text).not.toContain(leaked.hint);
+      expect(text).not.toContain(token);
+      expect(text).not.toContain("row-level security");
+      expect(JSON.parse(text)).toEqual(body);
+    }
+
+    const repo = new MemoryJobRepository();
+    repo.createJob = async () => boom();
+    repo.findJobs = async () => boom();
+    repo.getJobByRef = async () => boom();
+    repo.addNote = async () => boom();
+    repo.listNotes = async () => boom();
+    repo.listPhotoCaptions = async () => boom();
+    const { runtime } = runtimeFor({ repo });
+    const generic = { error: { code: "internal_error", message: "The action failed." } };
+
+    await assertNoPostgres(await post(runtime, "create_job", createBody), generic);
+    await assertNoPostgres(await get(runtime, "find_jobs", "/api/actions/jobs?customer_name=Ada"), generic);
+    await assertNoPostgres(await get(runtime, "get_job", "/api/actions/jobs/LL-4K7M", "LL-4K7M"), generic);
+    await assertNoPostgres(
+      await post(runtime, "add_note", {
+        client_request_id: "note-leak-0001",
+        ref: "LL-4K7M",
+        text: "Fan is noisy.",
+        summary: "Fan is noisy",
+      }),
+      generic,
+    );
+    await assertNoPostgres(
+      await post(runtime, "set_status", {
+        client_request_id: "status-leak-0001",
+        ref: "LL-4K7M",
+        status: "diagnosing",
+      }),
+      generic,
+    );
+
+    const live = new MemoryJobRepository();
+    const { runtime: liveRuntime } = runtimeFor({ repo: live, calendar: fakeCalendar().port });
+    const created = await read(
+      await post(liveRuntime, "create_job", { ...createBody, client_request_id: "create-for-leak" }),
+    );
+    live.updateJob = async () => boom();
+    await assertNoPostgres(
+      await post(liveRuntime, "set_status", {
+        client_request_id: "status-leak-0002",
+        ref: created.ref,
+        status: "diagnosing",
+      }),
+      generic,
+    );
+    await assertNoPostgres(
+      await post(liveRuntime, "create_collection_event", {
+        client_request_id: "collect-leak-0001",
+        ref: created.ref,
+        collection_at: "2026-10-02T16:00:00+01:00",
+      }),
+      {
+        ref: created.ref,
+        customer_name: "Ada Lovelace",
+        device_label: "MacBook Pro 2019",
+        error: { code: "internal_error", message: "The collection time could not be saved." },
+      },
+    );
   });
 
   it("rate limits a noisy client", async () => {
