@@ -9,6 +9,7 @@ import { Sheet } from "@/app/bench/sheet";
 import { SaveToast } from "@/app/bench/toast";
 import { usePendingPhrase } from "@/app/bench/use-pending-phrase";
 import { idleForm } from "@/lib/bench/form-state";
+import { requestOpenNote } from "@/lib/bench/note-view";
 import { JOB_STATUSES, STATUS_LABELS, type JobStatus } from "@/lib/jobs/domain";
 
 export function WhereAt({
@@ -41,7 +42,9 @@ export function WhereAt({
 
   function scrollToNote() {
     if (!latestNoteId) return;
-    document.getElementById(`note-${latestNoteId}`)?.scrollIntoView({ block: "nearest" });
+    requestOpenNote(jobRef, latestNoteId);
+    const row = document.getElementById(`note-${latestNoteId}`);
+    if (row && typeof row.scrollIntoView === "function") row.scrollIntoView({ block: "nearest" });
   }
 
   return (
@@ -58,11 +61,11 @@ export function WhereAt({
         <ChevronIcon direction="right" />
       </button>
       {latestNoteId ? (
-        <button type="button" className="where-row" onClick={scrollToNote}>
+        <button type="button" className="where-row where-finding-row" onClick={scrollToNote}>
           <FindingCopy label={findingLabel} time={latestTime} text={latestText} />
         </button>
       ) : (
-        <div className="where-row">
+        <div className="where-row where-finding-row">
           <FindingCopy label={findingLabel} time={null} text={latestText} />
         </div>
       )}

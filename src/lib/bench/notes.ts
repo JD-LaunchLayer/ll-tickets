@@ -1,4 +1,5 @@
 import { plainField } from "@/lib/bench/copy";
+import { derivedHeadline } from "@/lib/bench/note-view";
 import { reasonLine } from "@/lib/bench/reason";
 import type { Job, Note } from "@/lib/jobs/domain";
 import { fileNote } from "@/lib/jobs/record";
@@ -9,10 +10,14 @@ export type BenchResult<T> =
   | { ok: true; value: T }
   | { ok: false; message: string; reason?: string };
 
-/** First line, capped at the note summary length the record already uses. */
+/**
+ * Headline stored on a newly filed note. One line, at most 120 characters,
+ * so it still passes parseAddNote and notes_summary_length.
+ */
 export function summaryFromNoteText(text: string): string {
-  const first = text.trim().split(/\r?\n/, 1)[0]?.trim() ?? "";
-  return first.slice(0, 120).trim();
+  const headline = derivedHeadline(text).replace(/[\r\n]+/g, " ").trim();
+  const line = headline || (text.trim().split(/\r?\n/, 1)[0]?.trim() ?? "");
+  return line.slice(0, 120).trim();
 }
 
 /**

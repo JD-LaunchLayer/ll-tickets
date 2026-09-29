@@ -9,6 +9,7 @@ import { WhereAt } from "@/app/bench/where-at";
 import { ownerContext } from "@/lib/bench/context";
 import { formatBenchTime } from "@/lib/bench/format";
 import { latestNote } from "@/lib/bench/latest-note";
+import { noteHeadline } from "@/lib/bench/note-view";
 import { jobPath, listPath, orderedJobRefs, parseFromQuery, placeAriaLabel, placeInList, placeLabel } from "@/lib/bench/list-place";
 import { filterActiveJobs } from "@/lib/bench/filters";
 import { listBenchJobs, loadBenchJob } from "@/lib/bench/jobs";
@@ -80,7 +81,7 @@ export default async function JobPage({
         status={job.status}
         nextMove={job.nextMove}
         latestKind={latest.kind}
-        latestText={latest.kind === "empty" ? "No notes yet." : latest.note.text}
+        latestText={latest.kind === "empty" ? "No notes yet." : noteHeadline(latest.note)}
         latestTime={latest.kind === "empty" ? null : formatBenchTime(latest.note.createdAt)}
         latestNoteId={latest.kind === "empty" ? null : latest.note.id}
       />
@@ -109,6 +110,10 @@ export default async function JobPage({
             tag: note.tag,
             createdAt: note.createdAt,
             editedAt: note.editedAt,
+            summary: note.summary,
+            amountGbp: note.amountGbp,
+            partDetail: note.partDetail,
+            clientRequestId: note.clientRequestId,
           }))}
         />
       </section>
