@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { NextMoveForm, NoteForm, PhotoForm, StatusPicker } from "@/app/bench/forms";
 import { BenchShell } from "@/app/bench/shell";
@@ -31,71 +32,68 @@ export default async function JobPage({ params }: { params: Promise<{ ref: strin
   }
 
   return (
-    <BenchShell title={job.ref} backHref="/" askHref={`/jobs/${job.ref}/ask`}>
-      <header className="segment px-4 py-3">
-        <p className="text-lg font-semibold">{job.customerName}</p>
-        <p className="text-base text-slate-800">{job.deviceLabel}</p>
+    <BenchShell title={job.ref} backHref="/" backLabel="Jobs" dock={<NoteForm jobRef={job.ref} />}>
+      <header className="summary-card">
+        <p className="summary-name">{job.customerName}</p>
+        <p className="summary-device">{job.deviceLabel}</p>
         {job.phone && call ? (
-          <a href={call} className="mt-2 inline-flex min-h-12 items-center text-lg font-semibold text-[#2563eb] underline">
+          <a href={call} className="call-link">
             {job.phone}
           </a>
         ) : (
-          <p className="mt-2 text-sm text-slate-500">No phone number</p>
+          <p className="muted">No phone number</p>
         )}
-        <p className="mt-2 text-sm font-semibold text-slate-600">Reported fault</p>
-        <p className="whitespace-pre-wrap text-sm text-slate-800">{job.reportedFault}</p>
+        <p className="section-label">Reported fault</p>
+        <p className="note-text">{job.reportedFault}</p>
       </header>
 
-      <NoteForm jobRef={job.ref} noteCount={notes.length} />
+      <Link href={`/jobs/${job.ref}/ask`} className="tech-btn-secondary">
+        Ask the record
+      </Link>
+
       <StatusPicker jobRef={job.ref} status={job.status} />
       <NextMoveForm jobRef={job.ref} nextMove={job.nextMove} />
 
-      <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-semibold text-slate-600">Notes</h2>
-        {notes.length === 0 ? <p className="text-sm text-slate-600">No notes yet.</p> : null}
-        <ul className="flex flex-col gap-2">
+      <section className="job-list">
+        <h2 className="section-label">Notes</h2>
+        {notes.length === 0 ? <p className="empty">No notes yet.</p> : null}
+        <ul className="timeline">
           {notes.map((note) => (
-            <li key={note.id} className="segment px-4 py-3">
-              <p className="text-sm font-semibold text-slate-700">
-                {note.tag ? NOTE_TAG_LABELS[note.tag] : "Note"}
-                <span className="font-normal text-slate-500"> · {formatBenchTime(note.createdAt)}</span>
+            <li key={note.id} className="note-card">
+              <p className="note-meta">
+                <span className="status-pill">{note.tag ? NOTE_TAG_LABELS[note.tag] : "Note"}</span>
+                <time dateTime={note.createdAt}>{formatBenchTime(note.createdAt)}</time>
               </p>
-              <p className="mt-1 whitespace-pre-wrap text-base">{note.text}</p>
-              {note.editedAt ? (
-                <p className="mt-1 text-sm text-slate-500">Edited {formatBenchTime(note.editedAt)}</p>
-              ) : null}
+              <p className="note-text">{note.text}</p>
+              {note.editedAt ? <p className="muted">Edited {formatBenchTime(note.editedAt)}</p> : null}
             </li>
           ))}
         </ul>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold text-slate-600">Photos</h2>
+      <section className="job-list">
+        <h2 className="section-label">Photos</h2>
         {photoError ? (
-          <p className="text-sm text-red-700" role="alert">
+          <p className="error-panel-message" role="alert">
             {photoError}
           </p>
         ) : null}
         {photos.length > 0 ? (
-          <ul className="grid grid-cols-2 gap-2">
+          <ul className="photo-grid">
             {photos.map((photo) => (
               <li key={photo.id}>
-                <a href={photo.url} className="block overflow-hidden rounded-lg border border-slate-200 bg-white">
+                <a href={photo.url}>
                   {/* Signed URL for a private object. The image optimiser must not fetch it. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={photo.url}
-                    alt={photo.caption ?? "Photo on this job"}
-                    className="aspect-square w-full object-cover"
-                  />
-                  <span className="block px-2 py-1 text-xs text-slate-600">{formatBenchTime(photo.takenAt)}</span>
+                  <img src={photo.url} alt={photo.caption ?? "Photo on this job"} />
+                  <span>{formatBenchTime(photo.takenAt)}</span>
                 </a>
               </li>
             ))}
           </ul>
         ) : null}
         <PhotoForm jobRef={job.ref} />
-        <p className="text-sm text-slate-600">
+        <p className="muted">
           Device photos are stored privately for the repair and deleted 12 months after the job is closed.
         </p>
       </section>

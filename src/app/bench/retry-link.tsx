@@ -8,7 +8,7 @@ export function RetryLink({ href }: { href: string }) {
   return (
     <Link
       href={href}
-      className="mt-3 inline-flex min-h-12 items-center text-base font-semibold text-[#2563eb] underline"
+      className="text-link"
       onClick={(event) => {
         event.preventDefault();
         router.refresh();

@@ -1,9 +1,9 @@
 import { readFileSync } from "fs";
 import type { LanguageModelV4GenerateResult } from "@ai-sdk/provider";
 import { MockLanguageModelV4 } from "ai/test";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "@/app/openapi.json/route";
-import { NOT_CONFIGURED_MESSAGE } from "@/lib/assistant/copy";
+import { JOB_SUGGESTIONS, LIST_SUGGESTIONS, NOT_CONFIGURED_MESSAGE, suggestionDraft, suggestionsFor } from "@/lib/assistant/copy";
 import { WORKSHOP_RECORD_INSTRUCTIONS } from "@/lib/assistant/instructions";
 import {
   HISTORY_MESSAGE_LIMIT,
@@ -16,7 +16,9 @@ import {
 import { parseAssistantRequest, type AssistantMessage } from "@/lib/assistant/messages";
 import { DEFAULT_ASSISTANT_MODEL, assistantModelName, isAssistantConfigured } from "@/lib/assistant/model";
 import { buildSystemPrompt } from "@/lib/assistant/prompt";
+import { defaultSaveTag, saveAssistantFinding } from "@/lib/assistant/save-note";
 import { runAssistantTurn } from "@/lib/assistant/turn";
+import * as record from "@/lib/jobs/record";
 import { collectKeys } from "@/lib/jobs/domain";
 import { MemoryJobRepository } from "@/lib/jobs/memory-repository";
 import { RepositoryError } from "@/lib/jobs/repository-error";
@@ -153,7 +155,7 @@ describe("assistant limits", () => {
     expect(parseDailyLimit("15")).toBe(15);
     expect(usageDay(new Date("2026-09-29T23:30:00.000Z"))).toBe("2026-09-29");
     expect(HISTORY_MESSAGE_LIMIT).toBe(12);
-    expect(MAX_OUTPUT_TOKENS).toBe(400);
+    expect(MAX_OUTPUT_TOKENS).toBe(900);
     expect(TOOL_STEP_LIMIT).toBe(4);
   });
 
@@ -228,27 +230,18 @@ describe("assistant turn", () => {
     expect(usageStore.counts.size).toBe(0);
   });
 
-  it("files a job through the shared record and keeps the phone off the model", async () => {
+  it("registers only the read tools and does not file a job", async () => {
     const { result, model, repo } = await talk({
-      doGenerate: scripted([
-        toolStep("create_job", {
-          customer_name: "Ada Lovelace",
-          device_label: "MacBook Pro 2019",
-          reported_fault: "No power",
-          next_move: "Check the charger",
-        }),
-        textStep("LL-XXXX · Ada Lovelace · MacBook Pro 2019. Filed."),
-      ]),
+      doGenerate: async () => textStep("Check the DC jack before the board."),
     });
     expect(result.ok).toBe(true);
-    expect(repo.jobs).toHaveLength(1);
-    expect(repo.jobs[0]?.phone).toBeNull();
-    expect(repo.jobs[0]?.customerName).toBe("Ada Lovelace");
-    expect(repo.jobs[0]?.nextMove).toBe("Check the charger");
-    assertNoPhone(model);
-    const names = (model.doGenerateCalls[0]?.tools ?? []).map((item) => item.type === "function" ? item.name : "");
-    expect(names.sort()).toEqual(["add_note", "create_job", "edit_note", "find_jobs", "get_job", "set_status"]);
-    expect(names).not.toContain("create_collection_event");
+    expect(repo.jobs).toHaveLength(0);
+    expect(repo.notes).toHaveLength(0);
+    const names = (model.doGenerateCalls[0]?.tools ?? []).map((item) => (item.type === "function" ? item.name : ""));
+    expect(names.sort()).toEqual(["find_jobs", "get_job"]);
+    for (const blocked of ["create_job", "add_note", "edit_note", "set_status", "create_collection_event"]) {
+      expect(names).not.toContain(blocked);
+    }
     for (const item of model.doGenerateCalls[0]?.tools ?? []) {
       if (item.type !== "function") continue;
       expect(collectKeys(item.inputSchema).has("phone")).toBe(false);
@@ -257,92 +250,54 @@ describe("assistant turn", () => {
     expect(model.doGenerateCalls[0]?.maxOutputTokens).toBe(MAX_OUTPUT_TOKENS);
   });
 
-  it("rejects an empty customer name with the record's validation, and files nothing", async () => {
-    const { result, repo, model } = await talk({
-      doGenerate: scripted([
-        toolStep("create_job", {
-          customer_name: "  ",
-          device_label: "MacBook Pro 2019",
-          reported_fault: "No power",
-          next_move: "Check the charger",
-        }),
-        textStep("I need a name."),
-      ]),
-    });
-    expect(result.ok).toBe(true);
-    expect(repo.jobs).toHaveLength(0);
-    const blob = JSON.stringify(toolResultValues(model));
-    expect(blob).toContain("customer_name is required");
-    expect(blob).not.toContain("that failed");
-  });
-
-  it("files a note and a status on the scoped job without being told the ref again", async () => {
+  it("re-injects the current job, including notes, and keeps the phone off the model", async () => {
     const repo = new MemoryJobRepository();
     const job = await seed(repo, PHONE);
-    const noted = await talk({
-      repo,
-      scopeRef: job.ref,
-      messages: [{ role: "user", text: "Add a note: fan is noisy. Next move order a fan." }],
-      doGenerate: scripted([
-        toolStep("add_note", {
-          text: "Fan is noisy.",
-          summary: "Fan is noisy",
-          tag: "finding",
-          next_move: "Order a fan",
-        }),
-        textStep(`${job.ref} · Ada Lovelace · MacBook Pro 2019. Noted.`),
-      ]),
-    });
-    expect(noted.result.ok).toBe(true);
-    expect(repo.notes).toHaveLength(1);
-    expect(repo.notes[0]?.text).toBe("Fan is noisy.");
-    expect(repo.notes[0]?.tag).toBe("finding");
-    expect(repo.jobs[0]?.nextMove).toBe("Order a fan");
-    assertNoPhone(noted.model);
-    const system = noted.model.doGenerateCalls[0]?.prompt.find((message) => message.role === "system");
-    expect(system && typeof system.content === "string" ? system.content : "").toContain(job.ref);
-    expect(system && typeof system.content === "string" ? system.content : "").not.toContain(PHONE_DIGITS);
-
-    const status = await talk({
-      repo,
-      scopeRef: job.ref,
-      messages: [{ role: "user", text: "Waiting on parts, next move order battery." }],
-      doGenerate: scripted([
-        toolStep("set_status", { status: "waiting_on_parts", next_move: "Order battery" }),
-        textStep(`${job.ref} · Ada Lovelace · MacBook Pro 2019. Waiting on parts.`),
-      ]),
-    });
-    expect(status.result.ok).toBe(true);
-    expect(repo.jobs[0]?.status).toBe("waiting_on_parts");
-    expect(repo.jobs[0]?.nextMove).toBe("Order battery");
-    expect(repo.jobs[0]?.phone).toBe(PHONE);
-    assertNoPhone(status.model);
-  });
-
-  it("keeps the previous note wording when a note is edited", async () => {
-    const repo = new MemoryJobRepository();
-    const job = await seed(repo);
-    const note = await repo.addNote({
+    await repo.addNote({
       jobId: job.id,
-      text: "Fan is noisy.",
+      text: `Fan is noisy. Ring ${PHONE} if it comes back.`,
       summary: "Fan is noisy",
       tag: "finding",
       amountGbp: null,
       partDetail: null,
       createdAt: NOW,
-      clientRequestId: "asst-note-edit-0001",
+      clientRequestId: "asst-context-note-0001",
     });
-    const { result, repo: after } = await talk({
+    const messages: AssistantMessage[] = [];
+    for (let index = 0; index < 15; index += 1) {
+      messages.push({
+        role: index % 2 === 0 ? "user" : "assistant",
+        text: index === 0 ? "oldest-line" : index === 14 ? "What should I test next?" : `line-${index}`,
+      });
+    }
+    const { result, model } = await talk({
       repo,
       scopeRef: job.ref,
-      doGenerate: scripted([
-        toolStep("edit_note", { note_id: note.id, text: "Fan is very noisy." }),
-        textStep(`${job.ref} · Ada Lovelace · MacBook Pro 2019. Note corrected.`),
-      ]),
+      messages,
+      doGenerate: async () => textStep("Likely the charger. Measure the DC jack first."),
     });
     expect(result.ok).toBe(true);
-    expect(after.notes[0]?.text).toBe("Fan is very noisy.");
-    expect(after.revisions[0]?.text).toBe("Fan is noisy.");
+    expect(repo.notes).toHaveLength(1);
+    expect(repo.jobs[0]?.phone).toBe(PHONE);
+    expect(repo.jobs[0]?.status).toBe("new");
+    const system = model.doGenerateCalls[0]?.prompt.find((message) => message.role === "system");
+    const content = system && typeof system.content === "string" ? system.content : "";
+    expect(content).toContain(job.ref);
+    expect(content).toContain("MacBook Pro 2019");
+    expect(content).toContain("No power");
+    expect(content).toContain("Check the charger");
+    expect(content).toContain("finding (Finding)");
+    expect(content).toContain("Fan is noisy. Ring [omitted] if it comes back.");
+    expect(content).toContain("re-sent every turn");
+    expect(content).not.toContain(PHONE);
+    expect(content).not.toContain(PHONE_DIGITS);
+    const sent = model.doGenerateCalls[0]?.prompt.filter(
+      (message) => message.role === "user" || message.role === "assistant",
+    );
+    expect(sent).toHaveLength(12);
+    expect(JSON.stringify(sent)).not.toContain("oldest-line");
+    expect(JSON.stringify(sent)).not.toContain("Fan is noisy");
+    expect(promptBlob(model)).not.toContain(PHONE_DIGITS);
   });
 
   it("sends get_job and find_jobs results with no phone field and no phone number", async () => {
@@ -392,28 +347,31 @@ describe("assistant turn", () => {
     expect(JSON.stringify(toolResultValues(found.model))).toContain(job.ref);
   });
 
-  it("tells the model only that a write failed, and names the cause for the phone", async () => {
+  it("tells the model only that a read failed, and names the cause for the phone", async () => {
     const repo = new MemoryJobRepository();
     const job = await seed(repo, PHONE);
-    repo.addNote = async () => {
-      throw new RepositoryError("Could not file the note.", {
-        code: "42501",
-        message: "new row violates row-level security policy for table notes",
-        details: `Failing row contains (${PHONE_DIGITS}, secret-customer)`,
-        hint: null,
-      });
+    const original = repo.getJobByRef.bind(repo);
+    let calls = 0;
+    repo.getJobByRef = async (ref) => {
+      calls += 1;
+      if (calls > 1) {
+        throw new RepositoryError("Could not read the job.", {
+          code: "42501",
+          message: "new row violates row-level security policy for table jobs",
+          details: `Failing row contains (${PHONE_DIGITS}, secret-customer)`,
+          hint: null,
+        });
+      }
+      return original(ref);
     };
     const { result, model } = await talk({
       repo,
       scopeRef: job.ref,
-      doGenerate: scripted([
-        toolStep("add_note", { text: "Fan is noisy.", summary: "Fan is noisy" }),
-        textStep("That did not file."),
-      ]),
+      doGenerate: scripted([toolStep("get_job", {}), textStep("I could not read it.")]),
     });
     expect(result).toMatchObject({
       ok: true,
-      reply: "That did not file.",
+      reply: "I could not read it.",
       reasons: ["Reason: permission denied (42501)"],
     });
     const blob = promptBlob(model);
@@ -465,7 +423,7 @@ describe("assistant turn", () => {
 });
 
 describe("assistant prompt and the Action API", () => {
-  it("reuses the GPT instructions and states the in-app limits", () => {
+  it("uses the diagnostic rules and leaves the GPT instructions unchanged", () => {
     const markdown = readFileSync("docs/gpt-instructions.md", "utf8");
     const fenced = markdown.match(/```\n([\s\S]*?)\n```/);
     expect(fenced?.[1]).toBe(WORKSHOP_RECORD_INSTRUCTIONS);
@@ -473,21 +431,43 @@ describe("assistant prompt and the Action API", () => {
       ref: "LL-4K7M",
       customerName: "Ada Lovelace",
       deviceLabel: "MacBook Pro 2019",
+      reportedFault: "No power",
       status: "diagnosing",
       nextMove: "Check the charger",
+      notes: [{ tag: "finding", text: "No light on the charger brick." }],
     });
-    expect(prompt).toContain("You cannot see phone numbers and you cannot give phone numbers.");
-    expect(prompt).toContain("ask at most one question");
-    expect(prompt).toContain("Do not diagnose");
-    expect(prompt).toContain("Do not give repair advice");
+    expect(prompt).toContain("diagnosing buddy");
+    expect(prompt).toContain("terse, plain British English");
+    expect(prompt).toContain("likelihood and by how cheap they are to test");
+    expect(prompt).toContain("next 1 to 3 concrete tests");
+    expect(prompt).toContain("what to measure or try");
+    expect(prompt).toContain("what each result means");
+    expect(prompt).toContain("one targeted clarifying question");
+    expect(prompt).toContain("Never ask two questions");
+    expect(prompt).toContain("If you are unsure");
+    expect(prompt).toContain("what would settle it");
+    expect(prompt).toContain("Never state a diagnosis as certain");
+    expect(prompt).toContain("check the service manual / boardview");
+    expect(prompt).toContain("mains");
+    expect(prompt).toContain("swollen batteries");
+    expect(prompt).toContain("capacitors");
+    expect(prompt).toContain("liquid damage");
     expect(prompt).toContain("diagnostics are free");
     expect(prompt).toContain("£49");
     expect(prompt).toContain("£45");
-    expect(prompt).toContain("You never send anything to a customer");
-    expect(prompt).toContain("one plain line");
+    expect(prompt).toContain("Never quote a repair price you cannot back");
+    expect(prompt).toContain("You must not message a customer");
+    expect(prompt).toContain("You never receive a customer phone number");
+    expect(prompt).toContain("must never reveal one");
+    expect(prompt).toContain("You cannot create a job");
     expect(prompt).toContain("LL-4K7M");
+    expect(prompt).toContain("No power");
+    expect(prompt).toContain("finding (Finding)");
     expect(prompt).not.toContain(PHONE);
-    expect(prompt).toContain(WORKSHOP_RECORD_INSTRUCTIONS);
+    expect(prompt).not.toContain("Do not diagnose");
+    expect(prompt).not.toContain("He talks; you file");
+    expect(prompt).not.toContain(WORKSHOP_RECORD_INSTRUCTIONS);
+    expect(DEFAULT_ASSISTANT_MODEL).toBe("gpt-4.1");
   });
 
   it("leaves the seven actions and /openapi.json unchanged", async () => {
@@ -538,5 +518,78 @@ describe("assistant prompt and the Action API", () => {
     expect(parsed.messages).toHaveLength(12);
     expect(parsed.messages.some((message) => message.text === "oldest-line")).toBe(false);
     expect(parsed.messages[parsed.messages.length - 1]?.text).toBe("newest-line");
+  });
+
+  it("offers the job prompts on a job chat and the list prompts otherwise", () => {
+    expect([...suggestionsFor("LL-4K7M")]).toEqual([...JOB_SUGGESTIONS]);
+    expect(JOB_SUGGESTIONS).toEqual([
+      "What should I test next?",
+      "Summarise this job",
+      "Seen anything like this before?",
+    ]);
+    expect([...suggestionsFor(null)]).toEqual([...LIST_SUGGESTIONS]);
+    expect(LIST_SUGGESTIONS).toEqual(["Which jobs are waiting on me?", "Find jobs like..."]);
+    expect(suggestionDraft("Find jobs like...")).toEqual({ send: false, text: "Find jobs like... " });
+    expect(suggestionDraft("What should I test next?")).toEqual({
+      send: true,
+      text: "What should I test next?",
+    });
+  });
+});
+
+describe("save a reply to notes", () => {
+  it("does not file unless he confirms, then files through record.ts with the chosen tag", async () => {
+    const repo = new MemoryJobRepository();
+    const job = await seed(repo, PHONE);
+    expect(defaultSaveTag()).toBe("finding");
+    const held = await saveAssistantFinding(repo, {
+      ref: job.ref,
+      text: "Likely the DC jack. 20V in, 0V at the jack.",
+      tag: "parts",
+      confirmed: false,
+      clientRequestId: "asst-save-held-0001",
+      now: new Date(NOW),
+    });
+    expect(held.ok).toBe(false);
+    expect(repo.notes).toHaveLength(0);
+
+    const unknown = await saveAssistantFinding(repo, {
+      ref: job.ref,
+      text: "Could be the board.",
+      tag: "hypothesis",
+      confirmed: true,
+      clientRequestId: "asst-save-tag-0001",
+      now: new Date(NOW),
+    });
+    expect(unknown.ok).toBe(false);
+    expect(repo.notes).toHaveLength(0);
+
+    const spy = vi.spyOn(record, "fileNote");
+    const saved = await saveAssistantFinding(repo, {
+      ref: job.ref,
+      text: "Likely the DC jack. 20V in, 0V at the jack.",
+      tag: "finding",
+      confirmed: true,
+      clientRequestId: "asst-save-note-0001",
+      now: new Date(NOW),
+    });
+    expect(saved.ok).toBe(true);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(repo.notes).toHaveLength(1);
+    expect(repo.notes[0]?.tag).toBe("finding");
+    expect(repo.notes[0]?.text).toBe("Likely the DC jack. 20V in, 0V at the jack.");
+    expect(repo.notes[0]?.jobId).toBe(job.id);
+    expect(repo.jobs[0]?.phone).toBe(PHONE);
+    spy.mockRestore();
+
+    const chat = readFileSync("src/app/ask/chat.tsx", "utf8");
+    const action = readFileSync("src/app/ask/actions.ts", "utf8");
+    expect(chat).toContain("Save to notes");
+    expect(chat).toContain("Nothing is filed until you tap Save.");
+    expect(chat).toContain("confirmSave");
+    expect(chat).toContain("scopeRef");
+    expect(action).toContain("confirmed: true");
+    expect(action).toContain("saveAssistantFinding");
+    expect(readFileSync("src/lib/bench/notes.ts", "utf8")).toContain('from "@/lib/jobs/record"');
   });
 });

@@ -15,6 +15,7 @@ export function jobListPanel(input: {
   activeCount: number;
   finishedCount: number;
   search: string;
+  emptyMessage?: string;
 }): JobListPanel {
   if (input.failed) {
     return {
@@ -26,7 +27,9 @@ export function jobListPanel(input: {
   if (input.activeCount === 0 && input.finishedCount === 0) {
     return {
       kind: "empty",
-      message: input.search.trim() ? "Nothing matches that search." : "No jobs on the bench.",
+      message: input.search.trim()
+        ? "Nothing matches that search."
+        : (input.emptyMessage ?? "No jobs on the bench."),
     };
   }
   return { kind: "jobs" };

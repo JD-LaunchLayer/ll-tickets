@@ -7,9 +7,10 @@ import {
   type AssistantUsageStore,
 } from "@/lib/assistant/limit";
 import { parseAssistantRequest, type AssistantMessage } from "@/lib/assistant/messages";
-import { buildSystemPrompt, type PromptScope } from "@/lib/assistant/prompt";
+import { buildSystemPrompt, type PromptNote, type PromptScope } from "@/lib/assistant/prompt";
 import { stripForModel } from "@/lib/assistant/privacy";
 import { createAssistantTools, type AssistantToolContext } from "@/lib/assistant/tools";
+import type { Note } from "@/lib/jobs/domain";
 import { reasonLine } from "@/lib/bench/reason";
 import { canonicalJobRef } from "@/lib/jobs/ref";
 import { RepositoryError } from "@/lib/jobs/repository-error";
@@ -70,12 +71,20 @@ export async function runAssistantTurn(input: {
     }
     if (!job) return { ok: false, code: "validation", message: "No job with that ref." };
     if (job.phone) phones.add(job.phone);
+    let notes: Note[];
+    try {
+      notes = await input.repo.listNotes(job.id);
+    } catch (error) {
+      return { ok: false, code: "failed", message: FAILED_MESSAGE, reason: failureReason(error) };
+    }
     scope = {
       ref: job.ref,
       customerName: job.customerName,
       deviceLabel: job.deviceLabel,
+      reportedFault: job.reportedFault,
       status: job.status,
       nextMove: job.nextMove,
+      notes: notes.map((note): PromptNote => ({ tag: note.tag, text: note.text })),
     };
   }
 
@@ -93,7 +102,6 @@ export async function runAssistantTurn(input: {
     scopeRef: scope?.ref ?? null,
     phones,
     reasons: [],
-    lastFiling: null,
   };
 
   const instructions = stripForModel(buildSystemPrompt(scope), [...phones]);
@@ -111,11 +119,7 @@ export async function runAssistantTurn(input: {
       stopWhen: isStepCount(input.stepLimit ?? TOOL_STEP_LIMIT),
       maxOutputTokens: input.maxOutputTokens ?? MAX_OUTPUT_TOKENS,
     });
-    const reply =
-      result.text.trim() ||
-      (ctx.lastFiling
-        ? `${ctx.lastFiling.ref} · ${ctx.lastFiling.customerName} · ${ctx.lastFiling.deviceLabel}. Filed.`
-        : "Done.");
+    const reply = result.text.trim() || "Done.";
     return { ok: true, reply, reasons: ctx.reasons };
   } catch (error) {
     return { ok: false, code: "failed", message: FAILED_MESSAGE, reason: failureReason(error) };

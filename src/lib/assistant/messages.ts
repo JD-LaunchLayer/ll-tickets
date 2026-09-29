@@ -40,7 +40,7 @@ export function parseAssistantRequest(
   }
 
   if (messages.length === 0 || messages[messages.length - 1]?.role !== "user") {
-    return { ok: false, message: "Say what to file." };
+    return { ok: false, message: "Say what you want to ask." };
   }
 
   let scopeRef: string | null = null;
