@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ListScrollMemory, RememberListLink } from "@/app/bench/back-button";
 import { ErrorPanel } from "@/app/bench/error-panel";
 import { JobSearch } from "@/app/bench/job-search";
 import { BenchShell } from "@/app/bench/shell";
@@ -6,31 +7,36 @@ import { ownerContext } from "@/lib/bench/context";
 import { emptyListMessage, filterActiveJobs, parseBenchView, type BenchView } from "@/lib/bench/filters";
 import { listBenchJobs, type BenchListRow } from "@/lib/bench/jobs";
 import { jobListPanel } from "@/lib/bench/list-panel";
+import { buildListQuery, jobPath, listPath } from "@/lib/bench/list-place";
 import { STATUS_LABELS } from "@/lib/jobs/domain";
 
 export const dynamic = "force-dynamic";
 
+const FILTERS: Array<{ id: BenchView; label: string; aria: string }> = [
+  { id: "bench", label: "On bench", aria: "On the bench" },
+  { id: "parts", label: "Parts", aria: "Waiting on parts" },
+  { id: "ready", label: "Ready", aria: "Ready" },
+];
+
 function listHref(view: BenchView, finished: boolean, q: string): string {
-  const params = new URLSearchParams();
-  if (q.trim()) params.set("q", q.trim());
-  if (view !== "bench") params.set("view", view);
-  if (finished) params.set("finished", "1");
-  const query = params.toString();
-  return query ? `/?${query}` : "/";
+  return listPath(buildListQuery(view, finished, q));
 }
 
-function JobRow({ row }: { row: BenchListRow }) {
+function JobRow({ row, from }: { row: BenchListRow; from: string }) {
   return (
     <li>
-      <Link href={`/jobs/${row.ref}`} className="job-card">
+      <RememberListLink href={jobPath(row.ref, from)} className="job-card">
         <div className="job-card-top">
-          <span className="job-ref">{row.ref}</span>
+          <p className="job-customer">{row.customerName}</p>
           <span className={`status-pill status-${row.status}`}>{STATUS_LABELS[row.status]}</span>
         </div>
-        <p className="job-customer">{row.customerName}</p>
-        <p className="job-device">{row.deviceLabel}</p>
-        <p className="job-next">{row.nextMove}</p>
-      </Link>
+        <p className="job-device-line">
+          {row.deviceLabel}
+          {" · "}
+          <span className="job-ref-id">{row.ref}</span>
+        </p>
+        <p className="job-next clamp-2">{row.nextMove}</p>
+      </RememberListLink>
     </li>
   );
 }
@@ -47,6 +53,7 @@ export default async function Home({
   const q = rawQ ?? "";
   const includeFinished = rawFinished === "1";
   const view = parseBenchView(rawView);
+  const from = buildListQuery(view, includeFinished, q);
 
   const { repo } = await ownerContext();
   let active: BenchListRow[] = [];
@@ -71,58 +78,60 @@ export default async function Home({
     emptyMessage: emptyListMessage(view),
   });
 
-  const filters: Array<{ id: BenchView; label: string }> = [
-    { id: "bench", label: "On the bench" },
-    { id: "parts", label: "Waiting on parts" },
-    { id: "ready", label: "Ready" },
-  ];
-
   return (
-    <BenchShell title="Jobs" showSignOut>
+    <BenchShell title="Jobs" titlePlacement="sr" showSignOut>
+      <ListScrollMemory />
       <JobSearch q={q} view={view} finished={includeFinished} />
-      <div className="chip-row">
-        {filters.map((filter) => (
+      <div className="segments">
+        {FILTERS.map((filter) => (
           <Link
             key={filter.id}
             href={listHref(filter.id, includeFinished, q)}
-            className="chip"
-            aria-current={view === filter.id ? "page" : undefined}
+            className="segment"
+            aria-label={filter.aria}
+            aria-current={view === filter.id ? "true" : undefined}
           >
             {filter.label}
           </Link>
         ))}
-        <Link
-          href={listHref(view, !includeFinished, q)}
-          className="chip"
-          aria-pressed={includeFinished}
-        >
-          Include finished
-        </Link>
       </div>
-      <Link href="/jobs/new" className="tech-btn-primary">
-        New job
-      </Link>
       {panel.kind === "error" ? (
         <ErrorPanel message={panel.message} reason={panel.reason} retryHref={listHref(view, includeFinished, q)} />
       ) : null}
-      {panel.kind === "empty" ? <p className="empty">{panel.message}</p> : null}
+      {panel.kind === "empty" ? (
+        <div className="job-list">
+          <p className="empty">{panel.message}</p>
+          {view === "bench" ? (
+            <div className="empty-actions">
+              <Link href="/jobs/new" className="tech-btn-quiet">
+                New job
+              </Link>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       {panel.kind === "jobs" && active.length > 0 ? (
         <ul className="job-list">
           {active.map((row) => (
-            <JobRow key={row.ref} row={row} />
+            <JobRow key={row.ref} row={row} from={from} />
           ))}
         </ul>
       ) : null}
       {panel.kind === "jobs" && finished.length > 0 ? (
-        <section className="job-list">
+        <section className="job-list" aria-label="Finished">
           <h2 className="section-label">Finished</h2>
           <ul className="job-list">
             {finished.map((row) => (
-              <JobRow key={row.ref} row={row} />
+              <JobRow key={row.ref} row={row} from={from} />
             ))}
           </ul>
         </section>
       ) : null}
+      <div className="finished-toggle">
+        <Link href={listHref(view, !includeFinished, q)} className="tech-btn-quiet">
+          {includeFinished ? "Hide finished jobs" : "Show finished jobs"}
+        </Link>
+      </div>
     </BenchShell>
   );
 }

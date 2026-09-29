@@ -17,7 +17,7 @@ export function LoginForm({
   const ready = configured && ownerConfigured;
 
   return (
-    <form action={action} className="panel job-list">
+    <form action={action} className="login-form">
       {!configured ? (
         <p className="warn-panel">
           Add Supabase keys in <code>.env.local</code> (see <code>.env.example</code>) before signing in.
@@ -29,17 +29,17 @@ export function LoginForm({
         </p>
       ) : null}
       <label className="field">
-        <span className="field-label">Email</span>
-        <input className="login-input" type="email" name="email" autoComplete="username" required />
+        <span className="field-label field-label-lg">Email</span>
+        <input className="login-input" type="email" name="email" autoComplete="username" required readOnly={pending} />
       </label>
       {state.sent ? (
-        <p className="muted" role="status">
+        <p className="login-sent" role="status">
           Check your inbox for the sign-in link.
         </p>
       ) : null}
       {state.error ? <ErrorPanel message={state.error} /> : null}
       <button className="tech-btn-primary" type="submit" disabled={pending || !ready}>
-        {pending ? "Sending…" : "Email me a sign-in link"}
+        {pending ? "Sending…" : state.sent ? "Send again" : "Email me a sign-in link"}
       </button>
     </form>
   );

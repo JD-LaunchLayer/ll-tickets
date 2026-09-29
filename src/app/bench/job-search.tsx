@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { CloseIcon } from "@/app/bench/icons";
 import type { BenchView } from "@/lib/bench/filters";
 
 export function JobSearch({
@@ -44,7 +45,7 @@ export function JobSearch({
         />
         {value ? (
           <button className="search-clear" type="button" onClick={clear} aria-label="Clear search">
-            Clear
+            <CloseIcon />
           </button>
         ) : null}
       </div>
