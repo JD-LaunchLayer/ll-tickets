@@ -75,7 +75,7 @@ export default async function Home({
   });
 
   return (
-    <BenchShell title="Jobs" showSignOut>
+    <BenchShell title="Jobs" showSignOut askHref="/ask">
       <form action="/" method="get" className="space-y-3">
         {includeFinished ? <input type="hidden" name="finished" value="1" /> : null}
         <label className="field">

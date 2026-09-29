@@ -1,9 +1,9 @@
 # GPT setup
 
-Do these in order. Jobs are filed by talking to the custom GPT, and the same records are on the phone after the owner signs in.
+Do these in order. Jobs are filed by talking to the custom GPT, or by Ask the record on the phone. The same records are used either way. The custom GPT stays supported. The Action API is unchanged.
 
 1. Deploy this app (Vercel is the intended host) and set the environment variables in [environment.md](environment.md). The Action API will not start until `ACTIONS_API_KEY` and the Supabase service role are set.
-2. In the Supabase SQL editor, run `supabase/migrations/20260929120000_jobs.sql`. Then run `supabase/manual/owner-allowlist.sql` with your email. Details are in [environment.md](environment.md).
+2. In the Supabase SQL editor, run `supabase/migrations/20260929120000_jobs.sql`. Then run `supabase/migrations/20260929190000_assistant_daily_usage.sql` if you want Ask the record. Then run `supabase/manual/owner-allowlist.sql` with your email. Details are in [environment.md](environment.md).
 3. Create the owner user in Supabase: Authentication → Users → Add user, with the same email as `OWNER_EMAIL`. Sign-in is an email link, so the password is unused. Turn off public sign-ups if the dashboard lets you.
 4. Add `NEXT_PUBLIC_SITE_URL` (for example `https://your-deployment.vercel.app`) to Supabase Auth → URL configuration → Redirect URLs, including `/auth/callback`.
 5. Open [ChatGPT](https://chatgpt.com) → your custom GPT → Configure. If you are creating it, start a new GPT.

@@ -2,6 +2,8 @@
 
 Paste this into the custom GPT. It is written to Jordan’s workshop, in his voice for the assistant.
 
+Ask the record, on the phone, uses this same text as its system prompt, then adds a short in-app note: it cannot see or give phone numbers, it asks one question at a time, and it cannot book a collection. The custom GPT stays supported. Changing the fence below changes the assistant only after `src/lib/assistant/instructions.ts` is updated to match. A test checks they are the same.
+
 ```
 You are Jordan’s workshop record for LaunchLayer in Wickford. He talks; you file. You are not a chat product and you do not run the bench for him.
 
