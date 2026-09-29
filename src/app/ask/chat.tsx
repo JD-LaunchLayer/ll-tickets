@@ -331,46 +331,48 @@ export function AskChat({ configured, scopeRef }: { configured: boolean; scopeRe
         initialFocusRef={noteRef}
         restoreFocusRef={restoreRef}
       >
-        <p className="muted sheet-lead">Nothing is filed until you tap Save.</p>
-        <label className="field">
-          <span className="field-label">Note</span>
-          <textarea
-            ref={noteRef}
-            className="save-text-input"
-            value={sheet?.text ?? ""}
-            onChange={(event) => setSheet((current) => (current ? { ...current, text: event.target.value } : current))}
-            rows={6}
-            maxLength={4000}
-            readOnly={saving}
-          />
-        </label>
-        <label className="field">
-          <span className="field-label">Tag</span>
-          <select
-            className="select-control"
-            value={sheet?.tag ?? defaultSaveTag()}
-            aria-disabled={saving || undefined}
-            onChange={(event) => {
-              if (saving) return;
-              const tag = event.target.value;
-              setSheet((current) => (current ? { ...current, tag } : current));
-            }}
-          >
-            {NOTE_TAG_OPTIONS.map((option) => (
-              <option key={option.label} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {saveError.error ? <ErrorPanel message={saveError.error} reason={saveError.reason} /> : null}
-        <div className="sheet-actions">
-          <button className="tech-btn-secondary" type="button" disabled={saving} onClick={keepAndClose}>
-            Cancel
-          </button>
-          <button className="tech-btn-primary" type="button" disabled={saving || offline} onClick={() => void confirmSave()}>
-            {savePhrase}
-          </button>
+        <div className="sheet-form">
+          <p className="muted sheet-lead">Nothing is filed until you tap Save.</p>
+          <label className="field">
+            <span className="field-label">Note</span>
+            <textarea
+              ref={noteRef}
+              className="save-text-input"
+              value={sheet?.text ?? ""}
+              onChange={(event) => setSheet((current) => (current ? { ...current, text: event.target.value } : current))}
+              rows={6}
+              maxLength={4000}
+              readOnly={saving}
+            />
+          </label>
+          <label className="field">
+            <span className="field-label">Tag</span>
+            <select
+              className="select-control"
+              value={sheet?.tag ?? defaultSaveTag()}
+              aria-disabled={saving || undefined}
+              onChange={(event) => {
+                if (saving) return;
+                const tag = event.target.value;
+                setSheet((current) => (current ? { ...current, tag } : current));
+              }}
+            >
+              {NOTE_TAG_OPTIONS.map((option) => (
+                <option key={option.label} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {saveError.error ? <ErrorPanel message={saveError.error} reason={saveError.reason} /> : null}
+          <div className="sheet-actions">
+            <button className="tech-btn-secondary" type="button" disabled={saving} onClick={keepAndClose}>
+              Cancel
+            </button>
+            <button className="tech-btn-primary" type="button" disabled={saving || offline} onClick={() => void confirmSave()}>
+              {savePhrase}
+            </button>
+          </div>
         </div>
       </Sheet>
     </div>

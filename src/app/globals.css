@@ -1082,6 +1082,10 @@ summary {
   margin-top: 12px;
 }
 
+.sheet-form .sheet-actions {
+  margin-top: 0;
+}
+
 .sheet-actions .tech-btn-secondary {
   width: 40%;
 }
