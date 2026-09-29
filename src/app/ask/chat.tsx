@@ -9,7 +9,8 @@ import { Sheet, type SheetHandle } from "@/app/bench/sheet";
 import { usePendingPhrase } from "@/app/bench/use-pending-phrase";
 import { NOT_CONFIGURED_MESSAGE, suggestionDraft, suggestionsFor } from "@/lib/assistant/copy";
 import { HISTORY_MESSAGE_LIMIT } from "@/lib/assistant/limit";
-import { splitReply } from "@/lib/assistant/reply";
+import { ReplyBlocks } from "@/app/bench/note-blocks";
+import { SaveHeadline } from "@/app/bench/save-headline";
 import { defaultSaveTag } from "@/lib/assistant/save-note";
 import { SAVE_TAG_OPTIONS } from "@/lib/bench/note-tag-options";
 import { idleForm, type FormState } from "@/lib/bench/form-state";
@@ -60,33 +61,7 @@ function useThread(key: string): StoredMessage[] {
 }
 
 function ReplyBody({ text }: { text: string }) {
-  const blocks = splitReply(text);
-  if (blocks.length === 0) return null;
-  return (
-    <div className="reply">
-      {blocks.map((block, index) => {
-        if (block.type === "ul") {
-          return (
-            <ul key={index}>
-              {block.items.map((item, itemIndex) => (
-                <li key={itemIndex}>{item}</li>
-              ))}
-            </ul>
-          );
-        }
-        if (block.type === "ol") {
-          return (
-            <ol key={index}>
-              {block.items.map((item, itemIndex) => (
-                <li key={itemIndex}>{item}</li>
-              ))}
-            </ol>
-          );
-        }
-        return <p key={index}>{block.text}</p>;
-      })}
-    </div>
-  );
+  return <ReplyBlocks text={text} />;
 }
 
 function readStored(raw: string | null): StoredMessage[] {
@@ -345,6 +320,7 @@ export function AskChat({ configured, scopeRef }: { configured: boolean; scopeRe
               readOnly={saving}
             />
           </label>
+          <SaveHeadline text={sheet?.text ?? ""} />
           <label className="field">
             <span className="field-label">Tag</span>
             <select

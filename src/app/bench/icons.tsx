@@ -40,7 +40,13 @@ export function AskIcon({ className }: IconProps) {
   );
 }
 
-export function ChevronIcon({ direction }: { direction: "left" | "right" | "up" | "down" }) {
+export function ChevronIcon({
+  direction,
+  className,
+}: {
+  direction: "left" | "right" | "up" | "down";
+  className?: string;
+}) {
   const d =
     direction === "left"
       ? "M14.5 6.5 9 12l5.5 5.5"
@@ -50,7 +56,7 @@ export function ChevronIcon({ direction }: { direction: "left" | "right" | "up" 
           ? "M6.5 14.5 12 9l5.5 5.5"
           : "M6.5 9.5 12 15l5.5-5.5";
   return (
-    <Svg>
+    <Svg className={className}>
       <path {...stroke} d={d} />
     </Svg>
   );

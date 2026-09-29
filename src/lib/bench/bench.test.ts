@@ -49,7 +49,9 @@ describe("bench notes", () => {
     const repo = new MemoryJobRepository();
     const job = await benchJob(repo, { customerName: "Ada Lovelace", deviceLabel: "MacBook Pro 2019" });
     const long = `${"Fan seized. ".repeat(20)}Serial is fine.`;
-    expect(summaryFromNoteText("a".repeat(150))).toHaveLength(120);
+    expect(summaryFromNoteText("a".repeat(150))).toBe(`${"a".repeat(89)}…`);
+    expect(summaryFromNoteText("a".repeat(150)).length).toBeLessThanOrEqual(120);
+    expect(summaryFromNoteText(long)).not.toContain("\n");
     expect(summaryFromNoteText(long).length).toBeLessThanOrEqual(120);
 
     const filed = await addBenchNote(repo, {
