@@ -23,6 +23,18 @@ export const BRAND = {
   headerInk: "#0B1B3A",
   /** Dark-scheme fill behind the Waiting on parts badge. */
   darkAccentTint: "#102830",
+  /**
+   * Control borders (inputs, selects, secondary buttons, segments).
+   * Light 5.13:1 on surface. Dark value is `darkEdge`.
+   */
+  edge: "#5B7079",
+  /**
+   * 1px edge on accent-filled controls so a blue fill stays identifiable in dark.
+   * Light matches the accent. Dark value is `darkSelEdge`.
+   */
+  selEdge: "#0048B0",
+  darkEdge: "#7C9AA5",
+  darkSelEdge: "#5B8FE0",
   onAccent: "#FBFEFE",
   darkInk: "#F7FBFC",
   darkBody: "#D5E3E8",

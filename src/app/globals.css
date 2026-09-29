@@ -24,7 +24,16 @@
   --danger-text: #b02a2d;
   --success-text: #137738;
   --line: #d3e2e6;
+  --edge: #5b7079;
+  --sel-edge: #0048b0;
   --shadow: 0 8px 24px rgb(11 32 41 / 8%);
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s6: 24px;
+  --s8: 32px;
+  --s12: 48px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -42,6 +51,8 @@
     --danger-text: #f0b4b5;
     --success-text: #8fdba8;
     --line: #1e4450;
+    --edge: #7c9aa5;
+    --sel-edge: #5b8fe0;
     --shadow: 0 8px 24px rgb(0 0 0 / 28%);
   }
 }
