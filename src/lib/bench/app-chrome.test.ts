@@ -62,29 +62,31 @@ describe("locked app chrome", () => {
   const actionBar = rule(css, ".action-bar");
 
   it("keeps the document and frame from scrolling so only the middle region moves", () => {
-    const root = rule(css, "html");
-    const body = rule(css, "body");
-    expect(root).toContain("overflow: hidden");
-    expect(root).toContain("overscroll-behavior: none");
-    expect(body).toContain("overflow: hidden");
-    expect(body).toContain("overscroll-behavior: none");
-    expect(body).toContain("position: fixed");
-    expect(body).toContain("height: 100dvh");
-    expect(body).toContain("max-height: 100dvh");
+    const documentLock = css.match(/html,\s*body\s*\{([^}]*)\}/)?.[1] ?? "";
+    expect(documentLock).toContain("position: fixed");
+    expect(documentLock).toContain("inset: 0");
+    expect(documentLock).toContain("width: 100%");
+    expect(documentLock).toContain("height: 100%");
+    expect(documentLock).toContain("overflow: hidden");
+    expect(documentLock).toContain("overscroll-behavior: none");
 
+    expect(frame).toContain("position: fixed");
+    expect(frame).toContain("inset: 0");
+    expect(frame).toContain("top: var(--vv-top, 0px)");
+    expect(frame).toContain("height: var(--vvh, 100%)");
+    expect(frame).toContain("max-height: var(--vvh, 100%)");
     expect(frame).toContain("display: flex");
     expect(frame).toContain("flex-direction: column");
-    expect(frame).toContain("height: 100dvh");
-    expect(frame).toContain("max-height: 100dvh");
     expect(frame).toContain("overflow: hidden");
     expect(frame).toContain("overscroll-behavior: none");
-    expect(frame).not.toMatch(/position:\s*(?:sticky|fixed|absolute)/);
+    expect(css).toContain("--vvh: 100%");
+    expect(css).toContain("--vv-top: 0px");
 
     expect(scroll).toContain("flex: 1");
     expect(scroll).toContain("min-height: 0");
     expect(scroll).toContain("overflow-x: hidden");
     expect(scroll).toContain("overflow-y: auto");
-    expect(scroll).toContain("overscroll-behavior: contain");
+    expect(scroll).toContain("overscroll-behavior-y: contain");
     expect(scroll).toContain("-webkit-overflow-scrolling: touch");
     expect(scroll).toContain("touch-action: pan-y");
     expect(scroll).not.toContain("safe-area-inset-top");
@@ -246,23 +248,35 @@ describe("locked app chrome", () => {
     expect(jobAsk.indexOf("Ada · MacBook")).toBeLessThan(jobAsk.indexOf("</main>"));
 
     const providers = readFileSync("src/app/bench/providers.tsx", "utf8");
+    const guard = readFileSync("src/app/bench/scroll-lock.tsx", "utf8");
     expect(providers).toContain("visualViewport");
     expect(providers).toContain("--kb");
     expect(providers).toContain("dataset.kb");
     expect(providers).toContain("inset > 80");
+    expect(providers).toContain("AppScrollLock");
+    expect(guard).toContain("visualViewport");
+    expect(guard).toContain("--vvh");
+    expect(guard).toContain("--vv-top");
+    expect(guard).toContain('addEventListener("touchmove", onMove, { passive: false })');
+    expect(guard).toContain('removeEventListener("touchmove", onMove)');
+    expect(guard).toContain("shouldPreventDocumentMove");
     expect(css).toContain("bottom: var(--kb, 0px)");
     expect(css).toContain("var(--kb, 0px)");
 
     const short = css.slice(css.indexOf("@media (max-height: 480px)"));
     expect(short).toMatch(/html,\s*body\s*\{[^}]*position:\s*static/);
+    expect(short).toMatch(/html,\s*body\s*\{[^}]*inset:\s*auto/);
     expect(short).toMatch(/html,\s*body\s*\{[^}]*overflow:\s*auto/);
+    expect(short).toMatch(/\.app-frame\s*\{[^}]*position:\s*static/);
     expect(short).toMatch(/\.app-frame\s*\{[^}]*height:\s*auto/);
     expect(short).toMatch(/\.app-frame\s*\{[^}]*overflow:\s*visible/);
     expect(short).toMatch(/\.app-scroll\s*\{[^}]*overflow:\s*visible/);
     expect(short).toMatch(/\.tab-bar,\s*\.action-bar\s*\{[^}]*position:\s*static/);
 
     expect(css).toMatch(/html\[data-kb="1"\],\s*html\[data-kb="1"\] body\s*\{[^}]*position:\s*static/);
+    expect(css).toMatch(/html\[data-kb="1"\],\s*html\[data-kb="1"\] body\s*\{[^}]*inset:\s*auto/);
     expect(css).toMatch(/html\[data-kb="1"\],\s*html\[data-kb="1"\] body\s*\{[^}]*overflow:\s*auto/);
+    expect(css).toMatch(/html\[data-kb="1"\] \.app-frame\s*\{[^}]*position:\s*static/);
     expect(css).toMatch(/html\[data-kb="1"\] \.app-frame\s*\{[^}]*height:\s*auto/);
     expect(css).toMatch(/html\[data-kb="1"\] \.app-frame\s*\{[^}]*min-height:\s*0/);
     expect(css).toMatch(/html\[data-kb="1"\] \.app-frame\s*\{[^}]*overflow:\s*visible/);

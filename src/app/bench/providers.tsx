@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { AppScrollLock } from "@/app/bench/scroll-lock";
 
 type BenchUi = {
   offline: boolean;
@@ -75,6 +76,7 @@ export function BenchProviders({ children }: { children: React.ReactNode }) {
   return (
     <BenchUiContext.Provider value={value}>
       <KeyboardInset />
+      <AppScrollLock />
       {children}
     </BenchUiContext.Provider>
   );
