@@ -16,8 +16,9 @@
   --success: #137738;
   --danger: #b02a2d;
   --accent-light: #b7d2ff;
-  --header: #fbfefe;
-  --logo-plate: #fbfefe;
+  --header: #f4f6fa;
+  --header-line: #d5dce8;
+  --header-ink: #0b1b3a;
   --on-accent: #fbfefe;
   --link: #0048b0;
   --danger-text: #b02a2d;
@@ -37,7 +38,6 @@
     --canvas: #0b2029;
     --accent-soft: #16324a;
     --accent-tint: #102830;
-    --header: #000000;
     --link: #b7d2ff;
     --danger-text: #f0b4b5;
     --success-text: #8fdba8;
@@ -81,6 +81,10 @@ h2,
   outline-offset: 2px;
 }
 
+.app-header :focus-visible {
+  outline-color: var(--header-ink);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -106,12 +110,14 @@ h2,
 
 .app-header {
   flex: none;
+  width: 100%;
   background: var(--header);
-  border-bottom: 1px solid var(--line);
-  box-shadow: 0 1px 2px rgb(11 32 41 / 6%);
+  color: var(--header-ink);
+  color-scheme: light;
+  border-bottom: 1px solid var(--header-line);
   padding-top: env(safe-area-inset-top);
-  padding-right: max(0.75rem, env(safe-area-inset-right));
-  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+  padding-left: max(1rem, env(safe-area-inset-left));
 }
 
 .app-header-row {
@@ -119,23 +125,22 @@ h2,
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  min-height: 5rem;
+  min-height: 48px;
 }
 
 .brand-home {
   display: flex;
-  flex: 0 1 11rem;
+  flex: none;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   min-height: 48px;
   min-width: 48px;
-  border-radius: 999px;
 }
 
 .brand-logo {
   display: block;
   position: relative;
-  width: 100%;
+  height: 34px;
   aspect-ratio: 595 / 269;
   overflow: hidden;
   flex: none;
@@ -144,15 +149,6 @@ h2,
 .brand-logo img {
   position: absolute;
   max-width: none;
-}
-
-/* Dark header stays black. A light plate keeps the black "Launch" ink
-   readable without inverting the file or recolouring anti-aliased edges. */
-@media (prefers-color-scheme: dark) {
-  .brand-home {
-    background: var(--logo-plate);
-    padding: 0.3rem 0.55rem;
-  }
 }
 
 .header-action,
@@ -175,7 +171,7 @@ h2,
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: var(--link);
+  color: var(--header-ink);
   flex: none;
   font-family: var(--font-space), var(--font-inter), ui-sans-serif, sans-serif;
   font-size: 1rem;
@@ -339,6 +335,11 @@ h2,
 .search-field input {
   margin-top: 0;
   padding-right: 5.5rem;
+}
+
+.search-field input::placeholder {
+  color: var(--muted);
+  opacity: 1;
 }
 
 .search-clear {
@@ -657,7 +658,7 @@ h2,
 @media (prefers-color-scheme: dark) {
   .toast {
     background: var(--accent-light);
-    color: var(--header);
+    color: #0b2029;
   }
 }
 

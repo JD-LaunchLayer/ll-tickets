@@ -4,13 +4,13 @@ import { LOGO_CROP } from "@/lib/brand";
 export function BrandMark() {
   const { x, y, width, height, sourceWidth, sourceHeight } = LOGO_CROP;
   return (
-    <Link href="/" className="brand-home" aria-label="LaunchLayer jobs">
+    <Link href="/" className="brand-home">
       <span className="brand-logo">
         {/* Tight crop of the transparent lockup. next/image would fight that box. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/brand/image-0961fde4.png"
-          alt=""
+          alt="LaunchLayer"
           width={sourceWidth}
           height={sourceHeight}
           style={{
