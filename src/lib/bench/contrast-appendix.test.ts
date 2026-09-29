@@ -27,8 +27,6 @@ const light = {
   success: BRAND.success,
   accentDeep: BRAND.accentDeep,
   tint: BRAND.accentTint,
-  header: BRAND.header,
-  headerInk: BRAND.headerInk,
 };
 
 const dark = {
@@ -73,9 +71,6 @@ const PAIRS: Pair[] = [
   { scheme: "Light", name: "on-accent on success", fg: light.onAccent, bg: light.success, ratio: 5.56, needs: 4.5, pass: true },
   { scheme: "Light", name: "waiting on tint", fg: light.accentDeep, bg: light.tint, ratio: 10.95, needs: 4.5, pass: true },
   { scheme: "Light", name: "on-accent on danger", fg: light.onAccent, bg: light.danger, ratio: 6.44, needs: 4.5, pass: true },
-  { scheme: "Light", name: "header ink on band", fg: light.headerInk, bg: light.header, ratio: 15.75, needs: 4.5, pass: true },
-  { scheme: "Light", name: "logo blue on band", fg: "#0040B0", bg: light.header, ratio: 8.22, needs: 3, pass: true },
-  { scheme: "Light", name: "logo black on band", fg: "#000000", bg: light.header, ratio: 19.41, needs: 3, pass: true },
   { scheme: "Light", name: "tab active on surface", fg: light.accent, bg: light.surface, ratio: 8.11, needs: 4.5, pass: true },
   { scheme: "Light", name: "tab idle on surface", fg: light.body, bg: light.surface, ratio: 9.4, needs: 4.5, pass: true },
   { scheme: "Light", name: "placeholder on surface", fg: light.muted, bg: light.surface, ratio: 7.28, needs: 4.5, pass: true },
@@ -106,8 +101,6 @@ const PAIRS: Pair[] = [
   { scheme: "Dark", name: "tab active on surface", fg: dark.link, bg: dark.surface, ratio: 9.27, needs: 4.5, pass: true },
   { scheme: "Dark", name: "tab idle on surface", fg: dark.body, bg: dark.surface, ratio: 10.83, needs: 4.5, pass: true },
   { scheme: "Dark", name: "toast ink on link", fg: BRAND.ink, bg: dark.link, ratio: 10.92, needs: 4.5, pass: true },
-  { scheme: "Dark", name: "header ink on band", fg: light.headerInk, bg: light.header, ratio: 15.75, needs: 4.5, pass: true },
-  { scheme: "Dark", name: "logo blue on band", fg: "#0040B0", bg: light.header, ratio: 8.22, needs: 3, pass: true },
   { scheme: "Light", name: "new pill", fg: "#003280", bg: "#E3EEFF", ratio: 10.15, needs: 4.5, pass: true },
   { scheme: "Light", name: "waiting on customer", fg: BRAND.ink, bg: "#F4FAFB", ratio: 15.89, needs: 4.5, pass: true },
   { scheme: "Light", name: "collected", fg: BRAND.body, bg: BRAND.canvas, ratio: 8.4, needs: 4.5, pass: true },
@@ -135,12 +128,6 @@ describe("appendix contrast", () => {
         expect(ratio, `${pair.scheme} ${pair.name}`).toBeLessThan(pair.needs);
       }
     }
-  });
-
-  it("keeps the header band above the stated floors", () => {
-    expect(contrast("#0B1B3A", "#F4F6FA")).toBeGreaterThanOrEqual(4.5);
-    expect(contrast("#0040B0", "#F4F6FA")).toBeGreaterThanOrEqual(3);
-    expect(contrast(BRAND.headerInk, BRAND.header)).toBeGreaterThanOrEqual(4.5);
   });
 
   it("publishes edge and sel-edge in both schemes and does not use accent as dark text", () => {

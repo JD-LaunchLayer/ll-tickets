@@ -16,9 +16,6 @@
   --success: #137738;
   --danger: #b02a2d;
   --accent-light: #b7d2ff;
-  --header: #f4f6fa;
-  --header-line: #d5dce8;
-  --header-ink: #0b1b3a;
   --on-accent: #fbfefe;
   --link: #0048b0;
   --danger-text: #b02a2d;
@@ -83,7 +80,7 @@ h2,
 .page-title,
 .tech-btn-primary,
 .tech-btn-secondary,
-.header-action,
+.top-bar-sign-out,
 .summary-name,
 .top-bar-title,
 .sheet-title,
@@ -104,10 +101,6 @@ summary {
 :focus-visible {
   outline: 3px solid var(--link);
   outline-offset: 2px;
-}
-
-.app-header :focus-visible {
-  outline-color: var(--header-ink);
 }
 
 .sr-only {
@@ -131,49 +124,6 @@ summary {
   max-width: 32rem;
   overflow: hidden;
   background: var(--canvas);
-}
-
-.app-header {
-  flex: none;
-  width: 100%;
-  background: var(--header);
-  color: var(--header-ink);
-  color-scheme: light;
-  border-bottom: 1px solid var(--header-line);
-  padding-top: env(safe-area-inset-top);
-  padding-right: max(1rem, env(safe-area-inset-right));
-  padding-left: max(1rem, env(safe-area-inset-left));
-}
-
-.app-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s2);
-  min-height: 48px;
-}
-
-.brand-home {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: flex-start;
-  min-height: 48px;
-  min-width: 48px;
-}
-
-.brand-logo {
-  display: block;
-  position: relative;
-  height: 34px;
-  aspect-ratio: 595 / 269;
-  overflow: hidden;
-  flex: none;
-}
-
-.brand-logo img {
-  position: absolute;
-  max-width: none;
 }
 
 .top-bar {
@@ -238,6 +188,26 @@ summary {
   line-height: 1.125rem;
 }
 
+.top-bar-sign-out-form {
+  flex: none;
+  margin: 0;
+}
+
+.top-bar-sign-out {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--link);
+  flex: none;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5rem;
+}
+
 .offline-banner {
   flex: none;
   display: flex;
@@ -250,7 +220,7 @@ summary {
   line-height: 1.25rem;
 }
 
-.header-action,
+.top-bar-sign-out,
 .tab-link,
 .icon-btn,
 .tech-btn-primary,
@@ -260,21 +230,6 @@ summary {
 .text-link {
   min-height: 48px;
   min-width: 48px;
-}
-
-.header-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 12px;
-  background: transparent;
-  color: var(--header-ink);
-  flex: none;
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.5rem;
 }
 
 .app-scroll {
@@ -1393,7 +1348,7 @@ summary {
 }
 
 .login-lead {
-  margin: 4px 0 0;
+  margin: 0;
   color: var(--body);
   font-size: 0.9375rem;
   line-height: 1.375rem;
@@ -1454,6 +1409,13 @@ summary {
 .skeleton-title {
   height: 32px;
   width: 8rem;
+}
+
+.skeleton-bar-title {
+  width: 96px;
+  height: 20px;
+  border-radius: 6px;
+  flex: none;
 }
 
 .skeleton-line,

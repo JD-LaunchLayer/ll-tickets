@@ -1,14 +1,10 @@
-import { BrandMark } from "@/app/bench/brand-mark";
+import { LoadingTopBar } from "@/app/bench/top-bar";
 import { TabBar } from "@/app/bench/tab-bar";
 
 export default function Loading() {
   return (
     <div className="app-frame" aria-busy="true">
-      <header className="app-header">
-        <div className="app-header-row">
-          <BrandMark />
-        </div>
-      </header>
+      <LoadingTopBar />
       <div className="app-scroll">
         <p className="sr-only">Loading</p>
         <div className="skeleton skeleton-search" />
