@@ -13,13 +13,10 @@ import { jobPath, listPath, orderedJobRefs, parseFromQuery, placeAriaLabel, plac
 import { filterActiveJobs } from "@/lib/bench/filters";
 import { listBenchJobs, loadBenchJob } from "@/lib/bench/jobs";
 import { telHref } from "@/lib/bench/phone";
-import { compactViewport } from "@/lib/bench/compact-viewport";
 import { createPrivatePhotoUrl } from "@/lib/photos/signed-url";
 import { signJobPhotos, type SignedPhoto } from "@/lib/photos/views";
 
 export const dynamic = "force-dynamic";
-
-export const viewport = compactViewport;
 
 export default async function JobPage({
   params,

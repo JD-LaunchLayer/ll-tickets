@@ -3,12 +3,9 @@ import { AskChat, AskClear } from "@/app/ask/chat";
 import { BenchShell } from "@/app/bench/shell";
 import { isAssistantConfigured } from "@/lib/assistant/model";
 import { ownerContext } from "@/lib/bench/context";
-import { compactViewport } from "@/lib/bench/compact-viewport";
 import { loadBenchJob } from "@/lib/bench/jobs";
 
 export const dynamic = "force-dynamic";
-
-export const viewport = compactViewport;
 
 export default async function JobAskPage({ params }: { params: Promise<{ ref: string }> }) {
   const { ref } = await params;

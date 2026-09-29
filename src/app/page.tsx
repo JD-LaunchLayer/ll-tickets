@@ -79,7 +79,7 @@ export default async function Home({
   });
 
   return (
-    <BenchShell title="Jobs" titlePlacement="sr" showSignOut>
+    <BenchShell title="Jobs" titlePlacement="bar" barTitleSize="md" showSignOut>
       <ListScrollMemory />
       <JobSearch q={q} view={view} finished={includeFinished} />
       <div className="segments">

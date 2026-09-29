@@ -1,4 +1,4 @@
-import { BrandMark } from "@/app/bench/brand-mark";
+import { PlainTopBar } from "@/app/bench/top-bar";
 import { ErrorPanel } from "@/app/bench/error-panel";
 import { LoginForm } from "@/app/login/login-form";
 import { ownerEmail } from "@/lib/auth/owner";
@@ -23,13 +23,8 @@ export default async function LoginPage({
 
   return (
     <div className="app-frame">
-      <header className="app-header">
-        <div className="app-header-row">
-          <BrandMark />
-        </div>
-      </header>
+      <PlainTopBar title="Sign in" />
       <div className="app-scroll app-scroll-start">
-        <h1 className="page-title">Sign in</h1>
         <p className="login-lead">{ORG.shop}. Sign in with the owner email link.</p>
         {linkError ? <ErrorPanel message={linkError} /> : null}
         <LoginForm configured={isSupabaseConfigured()} ownerConfigured={ownerEmail() !== null} />

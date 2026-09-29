@@ -2,7 +2,7 @@ import { readFileSync } from "fs";
 import { inflateSync } from "zlib";
 import { describe, expect, it } from "vitest";
 import { splitReply } from "@/lib/assistant/reply";
-import { BRAND, contrast, LOGO_CROP } from "@/lib/brand";
+import { BRAND, contrast } from "@/lib/brand";
 import { emptyListMessage, filterActiveJobs, parseBenchView } from "@/lib/bench/filters";
 import { tabCurrent } from "@/lib/bench/tabs";
 import type { BenchListRow } from "@/lib/bench/jobs";
@@ -92,11 +92,8 @@ describe("phone view", () => {
       [BRAND.accentDeep, BRAND.accentSoft],
       [BRAND.accentDeep, BRAND.accentTint],
       [BRAND.accent, BRAND.surface],
-      [BRAND.accent, BRAND.header],
-      [BRAND.ink, BRAND.header],
-      [BRAND.headerInk, BRAND.header],
-      ["#000000", BRAND.header],
-      ["#0040B0", BRAND.header],
+      [BRAND.accent, BRAND.canvas],
+      [BRAND.accentLight, BRAND.darkCanvas],
       [BRAND.accentLight, BRAND.darkAccentTint],
       [BRAND.ink, BRAND.accentLight],
       [BRAND.darkInk, BRAND.darkSurface],
@@ -114,7 +111,7 @@ describe("phone view", () => {
     }
   });
 
-  it("ships the logo, icon sizes, manifest colours, safe area, and 48px targets", () => {
+  it("ships icon sizes, canvas theme colour, safe area, and 48px targets", () => {
     expect(pngSize("public/brand/image-0961fde4.png")).toEqual({ width: 640, height: 307 });
     expect(pngSize("public/icons/icon-192.png")).toEqual({ width: 192, height: 192 });
     expect(pngSize("public/icons/icon-512.png")).toEqual({ width: 512, height: 512 });
@@ -122,26 +119,17 @@ describe("phone view", () => {
     expect(pngSize("public/icons/apple-touch-icon.png")).toEqual({ width: 180, height: 180 });
 
     const css = readFileSync("src/app/globals.css", "utf8");
-    expect(css).toContain("--header: #f4f6fa");
-    expect(css).toContain("--header-line: #d5dce8");
-    expect(css).toContain("--header-ink: #0b1b3a");
-    expect(css.match(/--header:\s*#[0-9a-f]+/g)).toEqual(["--header: #f4f6fa"]);
+    expect(css).not.toMatch(/--header(?:-line|-ink)?:/);
     expect(css).not.toContain("logo-plate");
-    expect(css).not.toContain("--header: #000000");
-    const darkTokens = css.slice(css.indexOf("@media (prefers-color-scheme: dark)"), css.indexOf("@theme"));
-    expect(darkTokens).not.toContain("--header");
-    expect(css).toMatch(/\.app-header\s*\{[^}]*background:\s*var\(--header\)/);
-    expect(css).toMatch(/\.app-header\s*\{[^}]*border-bottom:\s*1px solid var\(--header-line\)/);
-    expect(css).toMatch(/\.app-header\s*\{[^}]*padding-top:\s*env\(safe-area-inset-top\)/);
-    expect(css).toMatch(/\.app-header\s*\{[^}]*padding-left:\s*max\(1rem, env\(safe-area-inset-left\)\)/);
+    expect(css).not.toContain(".app-header");
+    expect(css).not.toContain(".brand-logo");
+    expect(css).not.toContain(".brand-home");
+    expect(css).not.toContain(".header-action");
     expect(css).toMatch(/\.app-scroll\s*\{[^}]*padding-left:\s*max\(1rem, env\(safe-area-inset-left\)\)/);
-    expect(css).toMatch(/\.header-action\s*\{[^}]*color:\s*var\(--header-ink\)/);
-    expect(css).toMatch(/\.header-action,[\s\S]*?min-height:\s*48px/);
-    expect(css).toMatch(/\.header-action,[\s\S]*?min-width:\s*48px/);
+    expect(css).toMatch(/\.top-bar-sign-out,[\s\S]*?min-height:\s*48px/);
+    expect(css).toMatch(/\.top-bar-sign-out,[\s\S]*?min-width:\s*48px/);
+    expect(css).toMatch(/\.top-bar-sign-out\s*\{[^}]*color:\s*var\(--link\)/);
     expect(css).toMatch(/\.tab-link,[\s\S]*?min-height:\s*48px/);
-    expect(css).toMatch(/\.app-header :focus-visible\s*\{[^}]*outline-color:\s*var\(--header-ink\)/);
-    expect(css).toMatch(/\.brand-logo\s*\{[^}]*height:\s*34px/);
-    expect(css).not.toMatch(/\.brand-home\s*\{[^}]*(background|border-radius|box-shadow)/);
     expect(css).not.toContain("408 / 280");
     expect(css).toMatch(/\.search-field input::placeholder\s*\{[^}]*color:\s*var\(--muted\)/);
     expect(css).toMatch(/\.search-field input::placeholder\s*\{[^}]*opacity:\s*1/);
@@ -155,7 +143,9 @@ describe("phone view", () => {
     expect(css).toMatch(/\.toast\s*\{[^}]*color:\s*#0b2029/);
 
     const layout = readFileSync("src/app/layout.tsx", "utf8");
-    expect(layout.match(/BRAND\.themeColor/g)).toHaveLength(2);
+    expect(layout).toContain("BRAND.canvas");
+    expect(layout).toContain("BRAND.darkCanvas");
+    expect(layout).not.toContain("BRAND.themeColor");
     expect(layout).not.toContain("themeColorDark");
     expect(layout).toContain('media: "(prefers-color-scheme: light)"');
     expect(layout).toContain('media: "(prefers-color-scheme: dark)"');
@@ -167,8 +157,9 @@ describe("phone view", () => {
     expect(manifest).toContain("icon-192.png");
     expect(manifest).toContain("icon-512.png");
     expect(manifest).toContain("icon-maskable-512.png");
-    expect(manifest).toContain("BRAND.themeColor");
-    expect(manifest).toContain("BRAND.header");
+    expect(manifest).toContain("BRAND.darkCanvas");
+    expect(manifest).not.toContain("BRAND.themeColor");
+    expect(manifest).not.toContain("BRAND.header");
     expect(manifest).toContain('lang: "en-GB"');
     expect(manifest).toContain('display: "standalone"');
 
@@ -183,47 +174,6 @@ describe("phone view", () => {
     for (const token of ["#0b2029", "#364851", "#49585f", "#0048b0", "#b7d2ff", "#137738", "#b02a2d"]) {
       expect(css).toContain(token);
     }
-  });
-
-  it("crops the lockup onto the light band so Launch and Layer both sit on a light ground", () => {
-    expect(BRAND.header).toBe("#F4F6FA");
-    expect(BRAND.headerLine).toBe("#D5DCE8");
-    expect(BRAND.headerInk).toBe("#0B1B3A");
-    expect(BRAND.themeColor).toBe(BRAND.header);
-    expect(BRAND.darkAccentTint).toBe("#102830");
-
-    const logo = readPng("public/brand/image-0961fde4.png");
-    const { x, y, width, height } = LOGO_CROP;
-    let black = 0;
-    let blue = 0;
-    let outside = 0;
-    for (let py = 0; py < logo.height; py += 1) {
-      for (let px = 0; px < logo.width; px += 1) {
-        const i = (py * logo.width + px) * 4;
-        const r = logo.pixels[i];
-        const g = logo.pixels[i + 1];
-        const b = logo.pixels[i + 2];
-        const a = logo.pixels[i + 3];
-        if (a < 16) continue;
-        const inside = px >= x && px < x + width && py >= y && py < y + height;
-        if (!inside) {
-          outside += 1;
-          continue;
-        }
-        if (r + g + b < 80) black += 1;
-        else if (b > r) blue += 1;
-      }
-    }
-    expect(black).toBeGreaterThan(7000);
-    expect(blue).toBeGreaterThan(15000);
-    expect(outside).toBe(0);
-
-    const mark = readFileSync("src/app/bench/brand-mark.tsx", "utf8");
-    expect(mark).toContain("LOGO_CROP");
-    expect(mark).toContain("/brand/image-0961fde4.png");
-    expect(mark).toContain('alt="LaunchLayer"');
-    expect(mark).not.toContain("logo-dark");
-    expect(mark).not.toContain("invert");
   });
 
   it("keeps the node mark on a white icon, where the blue has AA contrast", () => {
