@@ -299,6 +299,10 @@ summary {
   gap: 0;
 }
 
+.app-scroll-start > .error-panel {
+  margin-top: 24px;
+}
+
 .fill-rest {
   display: flex;
   flex: 1;

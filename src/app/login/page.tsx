@@ -28,8 +28,8 @@ export default async function LoginPage({
           <BrandMark />
         </div>
       </header>
-      <div className="app-scroll">
-        <h1 className="page-title">Jobs</h1>
+      <div className="app-scroll app-scroll-start">
+        <h1 className="page-title">Sign in</h1>
         <p className="login-lead">{ORG.shop}. Sign in with the owner email link.</p>
         {linkError ? <ErrorPanel message={linkError} /> : null}
         <LoginForm configured={isSupabaseConfigured()} ownerConfigured={ownerEmail() !== null} />
