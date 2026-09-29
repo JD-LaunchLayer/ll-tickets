@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addPhotoAction, createJobAction } from "@/app/bench/actions";
 import { ErrorPanel } from "@/app/bench/error-panel";
+import { useOffline } from "@/app/bench/providers";
 import { SaveToast } from "@/app/bench/toast";
 import { usePendingPhrase } from "@/app/bench/use-pending-phrase";
 import { idleForm, type FormState } from "@/lib/bench/form-state";
@@ -19,30 +20,67 @@ function FieldError({ message, reason }: { message: string | null; reason?: stri
 
 export function CreateJobForm() {
   const [state, action, pending] = useActionState(createJobAction, idleForm);
+  const offline = useOffline();
+  const phrase = usePendingPhrase(pending, "Creating…", "Create job");
 
   return (
-    <form action={action} className="panel">
-      <div className="job-list">
+    <form action={action} className="pin-form">
+      <div className="pin-form-body">
         <label className="field">
           <span className="field-label">Customer name</span>
-          <input name="customer_name" required maxLength={120} autoComplete="name" />
+          <input
+            name="customer_name"
+            required
+            maxLength={120}
+            autoComplete="name"
+            autoCapitalize="words"
+            readOnly={pending}
+          />
         </label>
         <label className="field">
           <span className="field-label">Device</span>
-          <input name="device_label" required maxLength={160} autoComplete="off" />
+          <input
+            name="device_label"
+            required
+            maxLength={160}
+            autoComplete="off"
+            autoCapitalize="words"
+            readOnly={pending}
+          />
         </label>
         <label className="field">
           <span className="field-label">Reported fault</span>
-          <textarea name="reported_fault" required maxLength={2000} rows={4} />
+          <textarea
+            className="fault-input"
+            name="reported_fault"
+            required
+            maxLength={2000}
+            rows={3}
+            autoCapitalize="sentences"
+            readOnly={pending}
+          />
         </label>
         <label className="field">
           <span className="field-label">Phone number</span>
-          <input name="phone" type="tel" inputMode="tel" autoComplete="tel" maxLength={30} />
-          <span className="muted">Optional. Shown only here, as a tap-to-call link. The GPT never sees it.</span>
+          <input
+            name="phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            maxLength={30}
+            readOnly={pending}
+          />
+          <span className="field-hint">Optional. Tap-to-call on the job. The GPT never sees it.</span>
         </label>
-        <FieldError message={state.error} reason={state.reason} />
-        <button className="tech-btn-primary" type="submit" disabled={pending}>
-          {pending ? "Creating…" : "Create job"}
+      </div>
+      {state.error ? (
+        <div className="pin-error">
+          <FieldError message={state.error} reason={state.reason} />
+        </div>
+      ) : null}
+      <div className="action-bar">
+        <button className="tech-btn-primary" type="submit" disabled={pending || offline}>
+          {phrase}
         </button>
       </div>
     </form>

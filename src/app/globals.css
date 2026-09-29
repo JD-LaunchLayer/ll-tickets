@@ -482,6 +482,14 @@ summary {
   color: var(--ink);
 }
 
+.field-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.125rem;
+}
+
 .field input,
 .field textarea,
 .field select,
@@ -1126,6 +1134,15 @@ summary {
 .pin-form .action-bar {
   margin-right: calc(-1 * max(1rem, env(safe-area-inset-right)));
   margin-left: calc(-1 * max(1rem, env(safe-area-inset-left)));
+  margin-bottom: -20px;
+}
+
+.pin-error {
+  padding-bottom: 8px;
+}
+
+.action-bar > .tech-btn-primary {
+  flex: 1;
 }
 
 .error-panel {
