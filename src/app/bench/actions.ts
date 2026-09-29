@@ -10,6 +10,7 @@ import { addBenchNote } from "@/lib/bench/notes";
 import { reasonLine } from "@/lib/bench/reason";
 import { JOB_PHOTOS_BUCKET } from "@/lib/photos/signed-url";
 import { isJpeg, jobPhotoPath, PHOTO_MAX_BYTES } from "@/lib/photos/path";
+import type { JobStatus } from "@/lib/jobs/domain";
 import { canonicalJobRef } from "@/lib/jobs/ref";
 
 function field(formData: FormData, name: string): string {
@@ -80,6 +81,32 @@ export async function saveNextMoveAction(_prev: FormState, formData: FormData): 
   revalidatePath("/");
   revalidatePath(`/jobs/${result.value.ref}`);
   return saved("Next move saved.");
+}
+
+/** Thin wrapper: archive is a status change to collected or closed, nothing else. */
+export async function archiveJobAction(input: {
+  ref: string;
+  status: string;
+}): Promise<{ ok: true; previous: JobStatus } | { ok: false; message: string; reason: string | null }> {
+  if (input.status !== "collected" && input.status !== "closed_no_repair") {
+    return { ok: false, message: "Archive can only mark a job collected or closed.", reason: null };
+  }
+  const { repo } = await ownerContext();
+  const ref = canonicalJobRef(input.ref);
+  if (!ref) return { ok: false, message: "That job ref is not valid.", reason: null };
+  let previous: JobStatus;
+  try {
+    const job = await repo.getJobByRef(ref);
+    if (!job) return { ok: false, message: "No job with that ref.", reason: null };
+    previous = job.status;
+  } catch (error) {
+    return { ok: false, message: "Could not update the status.", reason: reasonLine(error) };
+  }
+  const result = await setBenchStatus(repo, ref, input.status, new Date());
+  if (!result.ok) return { ok: false, message: result.message, reason: result.reason ?? null };
+  revalidatePath("/");
+  revalidatePath(`/jobs/${result.value.ref}`);
+  return { ok: true, previous };
 }
 
 export async function addPhotoAction(formData: FormData): Promise<FormState> {

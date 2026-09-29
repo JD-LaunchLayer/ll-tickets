@@ -3,11 +3,13 @@ import { ListScrollMemory, RememberListLink } from "@/app/bench/back-button";
 import { ErrorPanel } from "@/app/bench/error-panel";
 import { JobSearch } from "@/app/bench/job-search";
 import { BenchShell } from "@/app/bench/shell";
+import { ArchiveController, SwipeRow } from "@/app/bench/swipe-row";
 import { ownerContext } from "@/lib/bench/context";
 import { emptyListMessage, filterActiveJobs, parseBenchView, type BenchView } from "@/lib/bench/filters";
 import { listBenchJobs, type BenchListRow } from "@/lib/bench/jobs";
 import { jobListPanel } from "@/lib/bench/list-panel";
 import { buildListQuery, jobPath, listPath } from "@/lib/bench/list-place";
+import { displayNextMove } from "@/lib/bench/now-next";
 import { STATUS_LABELS } from "@/lib/jobs/domain";
 
 export const dynamic = "force-dynamic";
@@ -22,22 +24,31 @@ function listHref(view: BenchView, finished: boolean, q: string): string {
   return listPath(buildListQuery(view, finished, q));
 }
 
-function JobRow({ row, from }: { row: BenchListRow; from: string }) {
+function listNext(row: BenchListRow): string {
+  return displayNextMove({
+    status: row.status,
+    nextMove: row.nextMove,
+    priceGbp: null,
+    priceBasis: null,
+    priceAgreedAt: null,
+    notes: [],
+  }).text;
+}
+
+function JobCard({ row, from, next }: { row: BenchListRow; from: string; next: string }) {
   return (
-    <li>
-      <RememberListLink href={jobPath(row.ref, from)} className="job-card">
-        <div className="job-card-top">
-          <p className="job-customer">{row.customerName}</p>
-          <span className={`status-pill status-${row.status}`}>{STATUS_LABELS[row.status]}</span>
-        </div>
-        <p className="job-device-line">
-          {row.deviceLabel}
-          {" · "}
-          <span className="job-ref-id">{row.ref}</span>
-        </p>
-        <p className="job-next clamp-2">{row.nextMove}</p>
-      </RememberListLink>
-    </li>
+    <RememberListLink href={jobPath(row.ref, from)} className="job-card">
+      <div className="job-card-top">
+        <p className="job-customer">{row.customerName}</p>
+        <span className={`status-pill status-${row.status}`}>{STATUS_LABELS[row.status]}</span>
+      </div>
+      <p className="job-device-line">
+        {row.deviceLabel}
+        {" · "}
+        <span className="job-ref-id">{row.ref}</span>
+      </p>
+      <p className="job-next clamp-2">{next}</p>
+    </RememberListLink>
   );
 }
 
@@ -80,6 +91,7 @@ export default async function Home({
 
   return (
     <BenchShell title="Jobs" titlePlacement="bar" barTitleSize="md" showSignOut>
+      <ArchiveController>
       <ListScrollMemory />
       <JobSearch q={q} view={view} finished={includeFinished} />
       <div className="segments">
@@ -113,7 +125,9 @@ export default async function Home({
       {panel.kind === "jobs" && active.length > 0 ? (
         <ul className="job-list">
           {active.map((row) => (
-            <JobRow key={row.ref} row={row} from={from} />
+            <SwipeRow key={row.ref} row={row}>
+              <JobCard row={row} from={from} next={listNext(row)} />
+            </SwipeRow>
           ))}
         </ul>
       ) : null}
@@ -122,7 +136,9 @@ export default async function Home({
           <h2 className="section-label">Finished</h2>
           <ul className="job-list">
             {finished.map((row) => (
-              <JobRow key={row.ref} row={row} from={from} />
+              <li key={row.ref}>
+                <JobCard row={row} from={from} next={row.nextMove} />
+              </li>
             ))}
           </ul>
         </section>
@@ -132,6 +148,7 @@ export default async function Home({
           {includeFinished ? "Hide finished jobs" : "Show finished jobs"}
         </Link>
       </div>
+      </ArchiveController>
     </BenchShell>
   );
 }

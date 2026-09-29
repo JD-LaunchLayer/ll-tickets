@@ -9,66 +9,155 @@ import { Sheet } from "@/app/bench/sheet";
 import { SaveToast } from "@/app/bench/toast";
 import { usePendingPhrase } from "@/app/bench/use-pending-phrase";
 import { idleForm } from "@/lib/bench/form-state";
-import { requestOpenNote } from "@/lib/bench/note-view";
-import { JOB_STATUSES, STATUS_LABELS, type JobStatus } from "@/lib/jobs/domain";
+import { formatPence, requestOpenNote } from "@/lib/bench/note-view";
+import {
+  displayNextMove,
+  noteFilterKey,
+  noteJumpKey,
+  noteVisibleInFilter,
+  parseNoteFilter,
+  type DisplayNextMove,
+} from "@/lib/bench/now-next";
+import { JOB_STATUSES, NOTE_TAG_LABELS, STATUS_LABELS, type JobStatus, type NoteTag } from "@/lib/jobs/domain";
 
-export function WhereAt({
+export function NowNext({
   jobRef,
   status,
   nextMove,
+  suggestion,
+  partsPence = 0,
+  partsCount = 0,
   latestKind,
   latestText,
   latestTime,
   latestNoteId,
+  latestTag,
 }: {
   jobRef: string;
   status: JobStatus;
   nextMove: string;
+  suggestion?: DisplayNextMove;
+  partsPence?: number;
+  partsCount?: number;
   latestKind: "finding" | "note" | "empty";
   latestText: string;
   latestTime: string | null;
   latestNoteId: string | null;
+  latestTag?: NoteTag | null;
 }) {
+  const offline = useOffline();
+  const shown =
+    suggestion ??
+    displayNextMove({
+      status,
+      nextMove,
+      priceGbp: null,
+      priceBasis: null,
+      priceAgreedAt: null,
+      notes: [],
+    });
   const [statusOpen, setStatusOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const statusButton = useRef<HTMLButtonElement>(null);
   const moveButton = useRef<HTMLButtonElement>(null);
   const moveInput = useRef<HTMLInputElement>(null);
   const currentStatus = useRef<HTMLButtonElement>(null);
+  const [state, formAction, pending] = useActionState(setStatusAction, idleForm);
+  const statusAction = shown.action?.type === "status" ? shown.action : null;
+  const phrase = usePendingPhrase(pending, "Saving…", statusAction?.label ?? "Save");
 
   const closeStatus = useCallback(() => setStatusOpen(false), []);
   const closeMove = useCallback(() => setMoveOpen(false), []);
-  const findingLabel = latestKind === "note" ? "Latest note" : "Latest finding";
+  const kicker =
+    latestKind === "finding" ? "Finding" : latestKind === "note" ? (latestTag ? NOTE_TAG_LABELS[latestTag] : "Untagged") : null;
+
+  function openNote() {
+    window.dispatchEvent(new CustomEvent("ll-open-note", { detail: { jobRef } }));
+  }
 
   function scrollToNote() {
     if (!latestNoteId) return;
+    let filter = "all";
+    try {
+      filter = parseNoteFilter(sessionStorage.getItem(noteFilterKey(jobRef)));
+    } catch {
+      filter = "all";
+    }
+    if (latestTag !== undefined && !noteVisibleInFilter(latestTag, parseNoteFilter(filter))) {
+      try {
+        sessionStorage.setItem(noteFilterKey(jobRef), "all");
+        sessionStorage.setItem(noteJumpKey(jobRef), latestNoteId);
+        window.dispatchEvent(new Event("ll-note-filter"));
+      } catch {
+        /* sessionStorage can be blocked; the note is still opened when it is already in the list. */
+      }
+    }
     requestOpenNote(jobRef, latestNoteId);
     const row = document.getElementById(`note-${latestNoteId}`);
     if (row && typeof row.scrollIntoView === "function") row.scrollIntoView({ block: "nearest" });
   }
 
+  const partsLabel = partsCount === 1 ? "1 part" : `${partsCount} parts`;
+  const partsMoney = formatPence(partsPence);
+
   return (
-    <section className="where-card" aria-label="Where I'm at">
-      <button ref={statusButton} type="button" className="where-row" onClick={() => setStatusOpen(true)}>
-        <span className={`status-pill status-${status}`}>{STATUS_LABELS[status]}</span>
-        <span className="where-kicker">Status ›</span>
-      </button>
-      <button ref={moveButton} type="button" className="where-row" onClick={() => setMoveOpen(true)}>
-        <span className="where-row-text">
-          <span className="where-kicker">Next move</span>
-          <span className="where-value clamp-3">{nextMove}</span>
-        </span>
-        <ChevronIcon direction="right" />
-      </button>
+    <section className="now-next" aria-label="Now and next">
+      <div className="now-status">
+        <button ref={statusButton} type="button" className="now-status-hit" onClick={() => setStatusOpen(true)}>
+          <span className={`status-pill status-${status}`}>{STATUS_LABELS[status]}</span>
+        </button>
+        {partsCount > 0 ? (
+          <span className="money-chip" aria-label={`Parts total ${partsMoney}, ${partsLabel}`}>
+            Parts {partsMoney}
+          </span>
+        ) : null}
+        <span className="now-spacer" />
+        <button type="button" className="now-icon" aria-label="Change status" onClick={() => setStatusOpen(true)}>
+          <ChevronIcon direction="right" />
+        </button>
+      </div>
       {latestNoteId ? (
-        <button type="button" className="where-row where-finding-row" onClick={scrollToNote}>
-          <FindingCopy label={findingLabel} time={latestTime} text={latestText} />
+        <button type="button" className="now-finding" onClick={scrollToNote}>
+          <span className="now-copy">
+            <span className="now-kicker-row">
+              <span className="where-kicker">{kicker}</span>
+              {latestTime ? <span className="where-kicker">{latestTime}</span> : null}
+            </span>
+            <span className="now-headline">{latestText}</span>
+          </span>
+          <ChevronIcon direction="right" className="icon now-chevron" />
         </button>
       ) : (
-        <div className="where-row where-finding-row">
-          <FindingCopy label={findingLabel} time={null} text={latestText} />
+        <div className="now-finding">
+          <span className="now-headline now-headline-empty">No finding yet</span>
+          <button type="button" className="now-add" onClick={openNote}>
+            Add
+          </button>
         </div>
       )}
+      <button ref={moveButton} type="button" className="now-move" onClick={() => setMoveOpen(true)}>
+        <span className="now-copy">
+          <span className="where-kicker">{shown.kind === "suggested" ? "Next · suggestion" : "Next"}</span>
+          <span className="now-sentence clamp-2">{shown.text}</span>
+        </span>
+        <ChevronIcon direction="right" className="icon now-chevron" />
+      </button>
+      {statusAction ? (
+        <form action={formAction} className="now-action">
+          <input type="hidden" name="ref" value={jobRef} />
+          <input type="hidden" name="status" value={statusAction.status} />
+          <button className="tech-btn-primary" type="submit" disabled={pending || offline}>
+            {phrase}
+          </button>
+        </form>
+      ) : shown.action?.type === "note" ? (
+        <div className="now-action">
+          <button className="tech-btn-primary" type="button" onClick={openNote}>
+            {shown.action.label}
+          </button>
+        </div>
+      ) : null}
+      <SaveToast message={state.notice} token={state.noticeId} />
       <StatusSheet
         open={statusOpen}
         jobRef={jobRef}
@@ -81,6 +170,7 @@ export function WhereAt({
         open={moveOpen}
         jobRef={jobRef}
         nextMove={nextMove}
+        suggested={shown.kind === "suggested"}
         inputRef={moveInput}
         restoreRef={moveButton}
         onClose={closeMove}
@@ -89,17 +179,8 @@ export function WhereAt({
   );
 }
 
-function FindingCopy({ label, time, text }: { label: string; time: string | null; text: string }) {
-  return (
-    <span className="where-row-text">
-      <span className="where-meta">
-        <span className="where-kicker">{label}</span>
-        {time ? <span className="where-kicker">{time}</span> : null}
-      </span>
-      <span className="where-finding clamp-2">{text}</span>
-    </span>
-  );
-}
+/** Earlier name, kept so the notes-feed test can render the same block. */
+export const WhereAt = NowNext;
 
 function StatusSheet({
   open,
@@ -161,6 +242,7 @@ function NextMoveSheet({
   open,
   jobRef,
   nextMove,
+  suggested,
   inputRef,
   restoreRef,
   onClose,
@@ -168,6 +250,7 @@ function NextMoveSheet({
   open: boolean;
   jobRef: string;
   nextMove: string;
+  suggested: boolean;
   inputRef: React.RefObject<HTMLInputElement | null>;
   restoreRef: React.RefObject<HTMLButtonElement | null>;
   onClose: () => void;
@@ -187,9 +270,11 @@ function NextMoveSheet({
       <Sheet open={open} title="Next move" onClose={onClose} initialFocusRef={inputRef} restoreFocusRef={restoreRef}>
         <form action={action} className="sheet-form">
           <input type="hidden" name="ref" value={jobRef} />
+          {suggested ? <p className="now-helper">This is a suggestion. Save your own text to replace it.</p> : null}
           <label className="field">
             <span className="field-label">Next move</span>
             <input
+              key={nextMove}
               ref={inputRef}
               name="next_move"
               required
@@ -200,10 +285,10 @@ function NextMoveSheet({
             />
           </label>
           {state.error ? <ErrorPanel message={state.error} reason={state.reason} /> : null}
-        <button className="tech-btn-primary" type="submit" disabled={pending || offline}>
-          {phrase}
-        </button>
-      </form>
+          <button className="tech-btn-primary" type="submit" disabled={pending || offline}>
+            {phrase}
+          </button>
+        </form>
       </Sheet>
       <SaveToast message={state.notice} token={state.noticeId} />
     </>

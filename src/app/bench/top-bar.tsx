@@ -4,7 +4,18 @@ import { signOut } from "@/app/login/actions";
 
 export function SignOutButton() {
   return (
-    <form action={signOut} className="top-bar-sign-out-form">
+    <form
+      action={signOut}
+      className="top-bar-sign-out-form"
+      onSubmit={() => {
+        const keys: string[] = [];
+        for (let index = 0; index < sessionStorage.length; index += 1) {
+          const key = sessionStorage.key(index);
+          if (key?.startsWith("ll-")) keys.push(key);
+        }
+        for (const key of keys) sessionStorage.removeItem(key);
+      }}
+    >
       <button className="top-bar-sign-out" type="submit">
         Sign out
       </button>

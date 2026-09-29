@@ -50,6 +50,17 @@ export function JobActionBar({
     window.dispatchEvent(new Event("ll-note-filed"));
   }, [seenNotice, key, jobRef]);
 
+  useEffect(() => {
+    const onOpen = (event: Event) => {
+      const detail = (event as CustomEvent<{ jobRef?: string }>).detail;
+      if (detail?.jobRef && detail.jobRef !== jobRef) return;
+      sheetRef.current?.prepare();
+      setOpen(true);
+    };
+    window.addEventListener("ll-open-note", onOpen);
+    return () => window.removeEventListener("ll-open-note", onOpen);
+  }, [jobRef]);
+
   function writeDraft(next: NoteDraft) {
     if (!next.text && next.tag === DEFAULT_NOTE_TAG) sessionStorage.removeItem(key);
     else sessionStorage.setItem(key, JSON.stringify(next));

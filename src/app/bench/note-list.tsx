@@ -5,6 +5,16 @@ import { ChevronIcon } from "@/app/bench/icons";
 import { NoteBody } from "@/app/bench/note-blocks";
 import { formatBenchTime } from "@/lib/bench/format";
 import {
+  emptyFilterMessage,
+  filterNotes,
+  noteCounts,
+  noteFilterKey,
+  noteJumpKey,
+  parseNoteFilter,
+  shownAboveId,
+  type NoteFilterId,
+} from "@/lib/bench/now-next";
+import {
   formatPence,
   headlineWasAuthored,
   isLongNote,
@@ -12,6 +22,7 @@ import {
   noteChipPence,
   noteHeadline,
   noteOpenKey,
+  partsSummary,
   readNoteOpenIds,
   takePendingNoteFocus,
   writeNoteOpenIds,
@@ -135,14 +146,61 @@ function ExpanderCaption({ open }: { open: boolean }) {
   );
 }
 
-export function NoteList({ jobRef, notes }: { jobRef: string; notes: NoteRow[] }) {
+const FILTERS: Array<{ id: NoteFilterId; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "finding", label: "Findings" },
+  { id: "parts", label: "Parts" },
+  { id: "contact", label: "Contact" },
+];
+
+function useNoteFilter(jobRef: string): NoteFilterId {
+  return useSyncExternalStore(
+    (onChange) => {
+      const handler = () => onChange();
+      window.addEventListener("ll-note-filter", handler);
+      return () => window.removeEventListener("ll-note-filter", handler);
+    },
+    () => {
+      try {
+        return parseNoteFilter(sessionStorage.getItem(noteFilterKey(jobRef)));
+      } catch {
+        return "all";
+      }
+    },
+    () => "all",
+  );
+}
+
+function writeFilter(jobRef: string, filter: NoteFilterId) {
+  sessionStorage.setItem(noteFilterKey(jobRef), filter);
+  window.dispatchEvent(new Event("ll-note-filter"));
+}
+
+export function NoteList({
+  jobRef,
+  notes,
+  latestNoteId,
+}: {
+  jobRef: string;
+  notes: NoteRow[];
+  latestNoteId?: string | null;
+}) {
   const openIds = useOpenIds(jobRef);
+  const filter = useNoteFilter(jobRef);
   const [freshId, setFreshId] = useState<string | null>(null);
+  const [dropCounts, setDropCounts] = useState(false);
+  const chipsRef = useRef<HTMLDivElement>(null);
+  const chipRefs = useRef<Partial<Record<NoteFilterId, HTMLButtonElement | null>>>({});
+  const shownId = latestNoteId === undefined ? shownAboveId(notes) : latestNoteId;
+  const counts = noteCounts(notes);
+  const visible = filterNotes(notes, filter);
+  const parts = partsSummary(notes);
 
   useEffect(() => {
     let timer = 0;
     const apply = () => {
       if (sessionStorage.getItem("ll-fresh") !== jobRef) return;
+      writeFilter(jobRef, "all");
       setFreshId(notes[0]?.id ?? null);
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
@@ -165,6 +223,24 @@ export function NoteList({ jobRef, notes }: { jobRef: string; notes: NoteRow[] }
     document.getElementById(`note-${id}`)?.querySelector<HTMLElement>("[data-note-hide]")?.focus();
   }, [openIds, jobRef]);
 
+  useEffect(() => {
+    const jump = sessionStorage.getItem(noteJumpKey(jobRef));
+    if (!jump) return;
+    sessionStorage.removeItem(noteJumpKey(jobRef));
+    const row = document.getElementById(`note-${jump}`);
+    if (row && typeof row.scrollIntoView === "function") row.scrollIntoView({ block: "nearest" });
+  }, [filter, jobRef, shownId]);
+
+  useEffect(() => {
+    if (dropCounts) return;
+    const group = chipsRef.current;
+    if (!group || window.innerWidth > 360) return;
+    const overflow = [...group.querySelectorAll<HTMLElement>("[role='radio']")].some(
+      (chip) => chip.scrollWidth > chip.clientWidth + 1,
+    );
+    if (overflow) setDropCounts(true);
+  }, [dropCounts, notes, filter]);
+
   function toggle(id: string) {
     const current = readNoteOpenIds(sessionStorage, jobRef);
     const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
@@ -172,22 +248,91 @@ export function NoteList({ jobRef, notes }: { jobRef: string; notes: NoteRow[] }
     window.dispatchEvent(new CustomEvent<NoteOpenDetail>("ll-note-open", { detail: { jobRef, noteId: id } }));
   }
 
+  function onFilterKey(event: React.KeyboardEvent<HTMLDivElement>) {
+    const index = FILTERS.findIndex((item) => item.id === filter);
+    let next = -1;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") next = (index + 1) % FILTERS.length;
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = (index - 1 + FILTERS.length) % FILTERS.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = FILTERS.length - 1;
+    else return;
+    event.preventDefault();
+    const id = FILTERS[next]?.id;
+    if (!id) return;
+    writeFilter(jobRef, id);
+    chipRefs.current[id]?.focus();
+  }
+
   if (notes.length === 0) {
     return <p className="muted">No notes yet. Add the first one below.</p>;
   }
 
+  const empty = emptyFilterMessage(filter);
+  const partWord = parts.count === 1 ? "1 part" : `${parts.count} parts`;
+
   return (
-    <ul className="timeline">
-      {notes.map((note) => (
-        <NoteItem
-          key={note.id}
-          note={note}
-          fresh={note.id === freshId}
-          open={openIds.includes(note.id)}
-          onToggle={() => toggle(note.id)}
-        />
-      ))}
-    </ul>
+    <>
+      <div
+        ref={chipsRef}
+        className="filter-chips"
+        role="radiogroup"
+        aria-label="Filter notes"
+        onKeyDown={onFilterKey}
+      >
+        {FILTERS.map((item) => {
+          const selected = filter === item.id;
+          const count = counts[item.id];
+          return (
+            <button
+              key={item.id}
+              ref={(node) => {
+                chipRefs.current[item.id] = node;
+              }}
+              type="button"
+              className="filter-chip"
+              role="radio"
+              aria-checked={selected}
+              tabIndex={selected ? 0 : -1}
+              onClick={() => writeFilter(jobRef, item.id)}
+            >
+              {item.label}
+              {dropCounts ? null : <span className="filter-count"> {count}</span>}
+            </button>
+          );
+        })}
+      </div>
+      <p className="sr-only" aria-live="polite">
+        {`Showing ${visible.length} of ${notes.length} notes`}
+      </p>
+      {filter === "parts" ? (
+        <p className="parts-total">
+          <span>Parts total</span>
+          <span className="money-chip">{formatPence(parts.pence)}</span>
+          <span>· {partWord}</span>
+        </p>
+      ) : null}
+      {visible.length === 0 && empty ? (
+        <div className="filter-empty">
+          <p aria-live="polite">{empty}</p>
+          <button type="button" className="tech-btn-quiet" onClick={() => writeFilter(jobRef, "all")}>
+            Show all notes
+          </button>
+        </div>
+      ) : (
+        <ul className="timeline">
+          {visible.map((note) => (
+            <NoteItem
+              key={note.id}
+              note={note}
+              fresh={note.id === freshId}
+              open={openIds.includes(note.id)}
+              shown={note.id === shownId}
+              onToggle={() => toggle(note.id)}
+            />
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 
@@ -195,11 +340,13 @@ function NoteItem({
   note,
   fresh,
   open,
+  shown,
   onToggle,
 }: {
   note: NoteRow;
   fresh: boolean;
   open: boolean;
+  shown: boolean;
   onToggle: () => void;
 }) {
   const long = isLongNote(note.text);
@@ -210,6 +357,7 @@ function NoteItem({
   const fromAsk = note.clientRequestId.startsWith("asst");
   const detailId = `note-${note.id}-detail`;
   const findingClass = finding ? " note-finding" : "";
+  const shownClass = shown && !long ? " note-shown-body" : "";
 
   return (
     <li id={`note-${note.id}`} className={fresh ? "note-row note-fresh" : "note-row"}>
@@ -218,6 +366,7 @@ function NoteItem({
           <NoteTypeIcon tag={note.tag} />
           <span className="note-type-label">{tagLabel(note.tag)}</span>
           {fromAsk ? <span className="note-ask">· from Ask</span> : null}
+          {shown ? <span className="note-shown-mark">· shown above</span> : null}
         </span>
         <span className="note-meta-end">
           {long && chip !== null ? <span className="money-chip">{formatPence(chip)}</span> : null}
@@ -264,11 +413,11 @@ function NoteItem({
         </>
       ) : chip !== null ? (
         <div className="note-money">
-          <p className="note-text">{moneyDisplayText(note)}</p>
+          <p className={`note-text${shownClass}`}>{moneyDisplayText(note)}</p>
           <span className="money-chip">{formatPence(chip)}</span>
         </div>
       ) : (
-        <p className={`note-text${findingClass}`}>{note.text}</p>
+        <p className={`note-text${findingClass}${shownClass}`}>{note.text}</p>
       )}
       {note.editedAt ? <p className="note-edited">Edited {formatBenchTime(note.editedAt)}</p> : null}
     </li>

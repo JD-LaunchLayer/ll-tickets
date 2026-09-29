@@ -5,11 +5,12 @@ import { PhotosBlock } from "@/app/bench/forms";
 import { JobActionBar } from "@/app/bench/job-action-bar";
 import { NoteList } from "@/app/bench/note-list";
 import { BenchShell } from "@/app/bench/shell";
-import { WhereAt } from "@/app/bench/where-at";
+import { NowNext } from "@/app/bench/where-at";
 import { ownerContext } from "@/lib/bench/context";
 import { formatBenchTime } from "@/lib/bench/format";
 import { latestNote } from "@/lib/bench/latest-note";
-import { noteHeadline } from "@/lib/bench/note-view";
+import { noteHeadline, partsSummary } from "@/lib/bench/note-view";
+import { displayNextMove } from "@/lib/bench/now-next";
 import { jobPath, listPath, orderedJobRefs, parseFromQuery, placeAriaLabel, placeInList, placeLabel } from "@/lib/bench/list-place";
 import { filterActiveJobs } from "@/lib/bench/filters";
 import { listBenchJobs, loadBenchJob } from "@/lib/bench/jobs";
@@ -36,6 +37,15 @@ export default async function JobPage({
   const { job, notes } = loaded;
   const call = job.phone ? telHref(job.phone) : null;
   const latest = latestNote(notes);
+  const parts = partsSummary(notes);
+  const suggestion = displayNextMove({
+    status: job.status,
+    nextMove: job.nextMove,
+    priceGbp: job.priceGbp,
+    priceBasis: job.priceBasis,
+    priceAgreedAt: job.priceAgreedAt,
+    notes,
+  });
 
   let place = null;
   try {
@@ -75,15 +85,19 @@ export default async function JobPage({
         />
       }
     >
-      <WhereAt
+      <NowNext
         key={job.ref}
         jobRef={job.ref}
         status={job.status}
         nextMove={job.nextMove}
+        suggestion={suggestion}
+        partsPence={parts.pence}
+        partsCount={parts.count}
         latestKind={latest.kind}
-        latestText={latest.kind === "empty" ? "No notes yet." : noteHeadline(latest.note)}
+        latestText={latest.kind === "empty" ? "No finding yet" : noteHeadline(latest.note)}
         latestTime={latest.kind === "empty" ? null : formatBenchTime(latest.note.createdAt)}
         latestNoteId={latest.kind === "empty" ? null : latest.note.id}
+        latestTag={latest.kind === "empty" ? null : latest.note.tag}
       />
       <CustomerCard
         key={job.ref}
@@ -94,7 +108,7 @@ export default async function JobPage({
         fault={job.reportedFault}
         startOpen={notes.length === 0}
       />
-      <section className="job-list" aria-label="Notes">
+      <section className="job-list notes-block" aria-label="Notes">
         <div className="section-head">
           <h2 className="notes-heading">Notes</h2>
           <Link href={`/jobs/${job.ref}/ask`} className="tech-btn-quiet" aria-label={`Ask the record about ${job.ref}`}>
@@ -104,6 +118,7 @@ export default async function JobPage({
         <NoteList
           key={job.ref}
           jobRef={job.ref}
+          latestNoteId={latest.kind === "finding" ? latest.note.id : null}
           notes={notes.map((note) => ({
             id: note.id,
             text: note.text,

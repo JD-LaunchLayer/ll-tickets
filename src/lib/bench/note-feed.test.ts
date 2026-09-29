@@ -260,9 +260,9 @@ describe("note rows", () => {
         createElement(NoteList, { jobRef: "LL-HPS3", notes: [note] }),
       ),
     );
-    const card = mounted.container.querySelector<HTMLButtonElement>(".where-finding-row");
+    const card = mounted.container.querySelector<HTMLButtonElement>(".now-finding");
     expect(card?.textContent).toContain(headline.slice(0, 20));
-    expect(window.getComputedStyle(card as Element).minHeight).toBe("76px");
+    expect(card?.tagName).toBe("BUTTON");
     await act(async () => {
       card?.click();
     });
