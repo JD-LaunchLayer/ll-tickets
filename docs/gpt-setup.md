@@ -1,0 +1,18 @@
+# GPT setup
+
+Do these in order. The phone view is not part of this version. Jobs are filed by talking to the custom GPT.
+
+1. Deploy this app (Vercel is the intended host) and set the environment variables in [environment.md](environment.md). The Action API will not start until `ACTIONS_API_KEY` and the Supabase service role are set.
+2. In the Supabase SQL editor, run `supabase/migrations/20260929120000_jobs.sql`. Then run `supabase/manual/owner-allowlist.sql` with your email. Details are in [environment.md](environment.md).
+3. Create the owner user in Supabase: Authentication → Users → Add user, with the same email as `OWNER_EMAIL`. Sign-in is an email link, so the password is unused. Turn off public sign-ups if the dashboard lets you.
+4. Add `NEXT_PUBLIC_SITE_URL` (for example `https://your-deployment.vercel.app`) to Supabase Auth → URL configuration → Redirect URLs, including `/auth/callback`.
+5. Open [ChatGPT](https://chatgpt.com) → your custom GPT → Configure. If you are creating it, start a new GPT.
+6. Under Actions, import the schema from `https://YOUR-DEPLOYMENT/openapi.json` (the live URL, not the file in Git). Authentication: API key, sent as a Bearer token. Paste `ACTIONS_API_KEY`.
+7. Paste the instructions from [gpt-instructions.md](gpt-instructions.md) into the GPT instructions box.
+8. Turn on web browsing so the GPT can read the live price list at [https://launchlayer.uk/services/](https://launchlayer.uk/services/).
+9. In ChatGPT settings → Data controls, turn off model improvement (do not allow chats to train the model).
+10. Test with a dummy job. Say you want a new job for a made-up customer, confirm when asked, then ask it to read the job back. Check the ref, the customer, the device, the fault, and the next step. Ask it to file a note, then correct one word, and confirm the old wording is still in `note_revisions` if you look in Supabase. Delete or close the dummy job with `closed_no_repair` when you are finished.
+
+The GPT must not be given a way to text or email customers. There is no such action.
+
+Suggested privacy wording for customers, for you to approve before anyone sees it, is in [privacy-note.md](privacy-note.md).

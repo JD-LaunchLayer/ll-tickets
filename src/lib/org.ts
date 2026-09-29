@@ -26,5 +26,5 @@ export function displayNameFromUser(user: {
   if (fromMeta.trim()) return fromMeta.trim();
   const email = user.email ?? "";
   const local = email.split("@")[0];
-  return local || "Tech";
+  return local || "Owner";
 }

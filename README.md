@@ -1,42 +1,44 @@
 # ll-tickets
 
-LaunchLayer solo-shop **ticket tracking** for Wickford repair (Jordan Duggins). Phone-first workbench: flick jobs by **where I’m at · findings · next**. British English.
+LaunchLayer workshop jobs for Jordan Duggins’ Wickford repair bench. He talks to a custom GPT. The GPT files a thin job and a stream of notes. A later phone view will sit on the same records. This version is the record and the Action API.
+
+British English.
 
 ## What it is
 
-- Single LaunchLayer org via Supabase Auth. No shop picker, no multi-tenant UI.
-- Ticket lists: **Open / Waiting / Done**. Each row: who · device · quiet state · latest finding · next only if a jot earned it (`next:` / `todo:`).
-- New ticket: who + what’s wrong. Here now. Opens the sheet immediately.
-- Ticket sheet: quiet Open / Waiting / Done, newest-first findings, optional next under the meta, sticky jot composer (`autoFocus`) with Send in the thumb zone.
-- More: history and help only
+- A job is a ref, a customer name, a device, the reported fault, a status, one next step, an optional price (estimate or quote), backup position, whether access was given, and an optional collection time.
+- Everything else is a note. Edits keep the previous wording.
+- The GPT sees the customer name and the device. It never sees the phone number and never sees photo files.
+- The Action API is seven operations, protected by a bearer API key. See `docs/gpt-actions.openapi.json` and `GET /openapi.json`.
 
 ## What it is not
 
-Billing, FreeAgent, SumUp, multi-shop/SaaS, Focus/Duolingo chrome, cyan TODAY heroes, Suggestions rails, QA/stress protocols, VisionFlow, Twilio, PC builder, marketing site, chat UI, parts/intake chip trees.
+Billing, FreeAgent, time logging, a customer portal, messaging the customer, multi-user, and the phone view. Those are out of this version. The earlier ticket bench (Open / Waiting / Done, customers, devices, ticket notes, password sign-in) has been removed because it did not match this record.
 
 ## Stack
 
-Next.js App Router, Supabase (Auth + Postgres + RLS), Tailwind. Vercel-ready.
+Next.js App Router, Supabase (Auth, Postgres, row-level security, private Storage), Vitest. Vercel-ready.
 
 ## Run locally
 
 1. Create a Supabase project.
-2. In the SQL editor, run `supabase/schema.sql`.
-3. Authentication → Users → Add user (email/password). Sign-up is not in the UI; this is a staff bench.
-4. Copy env and fill keys:
+2. Run `supabase/migrations/20260929120000_jobs.sql` in the SQL editor. It drops the old ticket tables if they are there.
+3. Run `supabase/manual/owner-allowlist.sql` with your email.
+4. Authentication → Users → Add user for that email. Sign-up from the app is off.
+5. Copy env and fill placeholders only with your own values:
 
 ```bash
 cp .env.example .env.local
 ```
 
-5. Install and start:
+6. Install and start:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000), sign in, create a ticket. You should land on the sheet with the composer focused.
+Open [http://localhost:3000](http://localhost:3000) and request a sign-in link. The page after sign-in is only a confirmation. Jobs are filed through the GPT.
 
 ```bash
 npm test
@@ -44,31 +46,16 @@ npm run lint
 npm run build
 ```
 
-## Deploy (Vercel)
+## Docs
 
-Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or `NEXT_PUBLIC_SUPABASE_ANON_KEY`) in the project environment. Deploy the repo. Same schema SQL against that Supabase project.
+- [GPT setup](docs/gpt-setup.md)
+- [GPT instructions](docs/gpt-instructions.md)
+- [Environment and secrets](docs/environment.md)
+- [Privacy note to approve](docs/privacy-note.md)
+- [OpenAPI file](docs/gpt-actions.openapi.json)
 
-## Schema
+## Deploy
 
-Minimal kernels only:
+Set the variables in `.env.example` on the host. At minimum the Action API needs `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ACTIONS_API_KEY`. Sign-in also needs the publishable key, `OWNER_EMAIL`, and `NEXT_PUBLIC_SITE_URL`. Calendar and photo clean-up are optional and documented in `docs/environment.md`.
 
-- `customers` — name, phone, email
-- `devices` — label, serial
-- `tickets` — symptom, status, waiting, here-now vs appointment, `due_at`
-- `ticket_notes` — one jot stream (note / finding / check outcome / status)
-
-RLS: authenticated users can use the whole bench (one shop). Anon has no access.
-
-## Lists
-
-| List | Meaning |
-| --- | --- |
-| Open | Not done, not waiting, not a future booking |
-| Waiting | Parked, or a future appointment |
-| Done | Done |
-
-Rows are for flicking: tell jobs apart from the latest finding without opening each. A quiet **next** line appears only when a jot includes `next:` or `todo:`.
-
-## Findings
-
-Open a ticket and **jot what is happening**. The composer focuses on open and sits in the thumb zone with Send in one tap. Findings are newest first. Open / Waiting / Done is a quiet where-at picker — never a Do-next hero.
+Do not apply the migration to a production database that still has ticket-bench data you need.

@@ -1,169 +1,259 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[];
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
+type JobStatus =
+  | "new"
+  | "diagnosing"
+  | "waiting_on_parts"
+  | "waiting_on_customer"
+  | "ready"
+  | "collected"
+  | "closed_no_repair";
+
+type PriceBasis = "estimate" | "quote";
+
+type BackupPosition = "customer_backed_up" | "we_backed_up" | "not_needed" | "not_discussed";
+
+type NoteTag = "finding" | "work_done" | "parts" | "customer_contact" | "quote_auth" | "other";
 
 export type Database = {
   public: {
     Tables: {
-      customers: {
+      jobs: {
         Row: {
           id: string;
-          name: string;
+          ref: string;
+          customer_name: string;
           phone: string | null;
-          email: string | null;
+          device_label: string;
+          reported_fault: string;
+          status: JobStatus;
+          next_move: string;
+          price_gbp: number | null;
+          price_basis: PriceBasis | null;
+          price_agreed_at: string | null;
+          backup_position: BackupPosition | null;
+          access_given: boolean | null;
+          collection_at: string | null;
+          calendar_event_id: string | null;
+          follow_up_at: string | null;
+          created_at: string;
+          updated_at: string;
+          closed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          ref?: string;
+          customer_name: string;
+          phone?: string | null;
+          device_label: string;
+          reported_fault: string;
+          status?: JobStatus;
+          next_move: string;
+          price_gbp?: number | null;
+          price_basis?: PriceBasis | null;
+          price_agreed_at?: string | null;
+          backup_position?: BackupPosition | null;
+          access_given?: boolean | null;
+          collection_at?: string | null;
+          calendar_event_id?: string | null;
+          follow_up_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          closed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          ref?: string;
+          customer_name?: string;
+          phone?: string | null;
+          device_label?: string;
+          reported_fault?: string;
+          status?: JobStatus;
+          next_move?: string;
+          price_gbp?: number | null;
+          price_basis?: PriceBasis | null;
+          price_agreed_at?: string | null;
+          backup_position?: BackupPosition | null;
+          access_given?: boolean | null;
+          collection_at?: string | null;
+          calendar_event_id?: string | null;
+          follow_up_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          closed_at?: string | null;
+        };
+        Relationships: [];
+      };
+      notes: {
+        Row: {
+          id: string;
+          job_id: string;
+          text: string;
+          summary: string;
+          tag: NoteTag | null;
+          amount_gbp: number | null;
+          part_detail: string | null;
+          created_at: string;
+          edited_at: string | null;
+          client_request_id: string;
+        };
+        Insert: {
+          id?: string;
+          job_id: string;
+          text: string;
+          summary: string;
+          tag?: NoteTag | null;
+          amount_gbp?: number | null;
+          part_detail?: string | null;
+          created_at?: string;
+          edited_at?: string | null;
+          client_request_id: string;
+        };
+        Update: {
+          id?: string;
+          job_id?: string;
+          text?: string;
+          summary?: string;
+          tag?: NoteTag | null;
+          amount_gbp?: number | null;
+          part_detail?: string | null;
+          created_at?: string;
+          edited_at?: string | null;
+          client_request_id?: string;
+        };
+        Relationships: [];
+      };
+      note_revisions: {
+        Row: {
+          id: string;
+          note_id: string;
+          text: string;
+          summary: string;
+          tag: NoteTag | null;
+          amount_gbp: number | null;
+          part_detail: string | null;
+          superseded_at: string;
+        };
+        Insert: {
+          id?: string;
+          note_id: string;
+          text: string;
+          summary: string;
+          tag?: NoteTag | null;
+          amount_gbp?: number | null;
+          part_detail?: string | null;
+          superseded_at?: string;
+        };
+        Update: {
+          id?: string;
+          note_id?: string;
+          text?: string;
+          summary?: string;
+          tag?: NoteTag | null;
+          amount_gbp?: number | null;
+          part_detail?: string | null;
+          superseded_at?: string;
+        };
+        Relationships: [];
+      };
+      photos: {
+        Row: {
+          id: string;
+          job_id: string;
+          note_id: string | null;
+          storage_path: string;
+          taken_at: string;
+          caption: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
-          name: string;
-          phone?: string | null;
-          email?: string | null;
+          job_id: string;
+          note_id?: string | null;
+          storage_path: string;
+          taken_at: string;
+          caption?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
-          name?: string;
-          phone?: string | null;
-          email?: string | null;
+          job_id?: string;
+          note_id?: string | null;
+          storage_path?: string;
+          taken_at?: string;
+          caption?: string | null;
           created_at?: string;
         };
         Relationships: [];
       };
-      devices: {
+      action_idempotency: {
         Row: {
-          id: string;
-          customer_id: string;
-          label: string;
-          serial: string | null;
+          client_request_id: string;
+          operation: string;
+          request_hash: string;
+          response: Json | null;
+          http_status: number;
           created_at: string;
         };
         Insert: {
-          id?: string;
-          customer_id: string;
-          label: string;
-          serial?: string | null;
+          client_request_id: string;
+          operation: string;
+          request_hash: string;
+          response?: Json | null;
+          http_status?: number;
           created_at?: string;
         };
         Update: {
-          id?: string;
-          customer_id?: string;
-          label?: string;
-          serial?: string | null;
+          client_request_id?: string;
+          operation?: string;
+          request_hash?: string;
+          response?: Json | null;
+          http_status?: number;
           created_at?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "devices_customer_id_fkey";
-            columns: ["customer_id"];
-            isOneToOne: false;
-            referencedRelation: "customers";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [];
       };
-      tickets: {
+      action_audit: {
         Row: {
           id: string;
-          customer_id: string;
-          device_id: string;
-          symptom: string;
-          status: Database["public"]["Enums"]["ticket_status"];
-          waiting: boolean;
-          arrival_kind: Database["public"]["Enums"]["arrival_kind"];
-          due_at: string;
-          created_by: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          customer_id: string;
-          device_id: string;
-          symptom: string;
-          status?: Database["public"]["Enums"]["ticket_status"];
-          waiting?: boolean;
-          arrival_kind?: Database["public"]["Enums"]["arrival_kind"];
-          due_at: string;
-          created_by?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          customer_id?: string;
-          device_id?: string;
-          symptom?: string;
-          status?: Database["public"]["Enums"]["ticket_status"];
-          waiting?: boolean;
-          arrival_kind?: Database["public"]["Enums"]["arrival_kind"];
-          due_at?: string;
-          created_by?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "tickets_customer_id_fkey";
-            columns: ["customer_id"];
-            isOneToOne: false;
-            referencedRelation: "customers";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "tickets_device_id_fkey";
-            columns: ["device_id"];
-            isOneToOne: false;
-            referencedRelation: "devices";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      ticket_notes: {
-        Row: {
-          id: string;
-          ticket_id: string;
-          kind: Database["public"]["Enums"]["note_kind"];
-          body: string;
-          created_by: string | null;
+          operation: string;
+          client_request_id: string;
+          job_id: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
-          ticket_id: string;
-          kind?: Database["public"]["Enums"]["note_kind"];
-          body: string;
-          created_by?: string | null;
+          operation: string;
+          client_request_id: string;
+          job_id?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
-          ticket_id?: string;
-          kind?: Database["public"]["Enums"]["note_kind"];
-          body?: string;
-          created_by?: string | null;
+          operation?: string;
+          client_request_id?: string;
+          job_id?: string | null;
           created_at?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "ticket_notes_ticket_id_fkey";
-            columns: ["ticket_id"];
-            isOneToOne: false;
-            referencedRelation: "tickets";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [];
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      list_expired_job_photos: {
+        Args: Record<string, never>;
+        Returns: { id: string; storage_path: string }[];
+      };
+      purge_expired_job_photos: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
+    };
     Enums: {
-      ticket_status: "intake" | "diagnose" | "parts" | "done";
-      arrival_kind: "walk_in" | "appointment";
-      note_kind: "note" | "finding" | "check_outcome" | "status";
+      job_status: JobStatus;
+      price_basis: PriceBasis;
+      backup_position: BackupPosition;
+      note_tag: NoteTag;
     };
     CompositeTypes: Record<string, never>;
   };

@@ -1,5 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
+import { isOwnerEmail } from "@/lib/auth/owner";
 import { displayNameFromUser, ORG, type BenchSession } from "@/lib/org";
+import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
 export async function getBenchSession(): Promise<BenchSession | null> {
@@ -18,8 +19,13 @@ export async function getBenchSession(): Promise<BenchSession | null> {
   };
 }
 
-export async function requireBenchSession(): Promise<BenchSession> {
+export async function requireOwnerSession(): Promise<BenchSession> {
   const session = await getBenchSession();
   if (!session) redirect("/login");
+  if (!isOwnerEmail(session.user.email)) {
+    const supabase = await createClient();
+    await supabase.auth.signOut();
+    redirect("/login?error=owner");
+  }
   return session;
 }
