@@ -11,7 +11,7 @@ import { NOT_CONFIGURED_MESSAGE, suggestionDraft, suggestionsFor } from "@/lib/a
 import { HISTORY_MESSAGE_LIMIT } from "@/lib/assistant/limit";
 import { splitReply } from "@/lib/assistant/reply";
 import { defaultSaveTag } from "@/lib/assistant/save-note";
-import { NOTE_TAG_OPTIONS } from "@/lib/bench/note-tag-options";
+import { SAVE_TAG_OPTIONS } from "@/lib/bench/note-tag-options";
 import { idleForm, type FormState } from "@/lib/bench/form-state";
 
 type StoredMessage = {
@@ -357,7 +357,7 @@ export function AskChat({ configured, scopeRef }: { configured: boolean; scopeRe
                 setSheet((current) => (current ? { ...current, tag } : current));
               }}
             >
-              {NOTE_TAG_OPTIONS.map((option) => (
+              {SAVE_TAG_OPTIONS.map((option) => (
                 <option key={option.label} value={option.value}>
                   {option.label}
                 </option>

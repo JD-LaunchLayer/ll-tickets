@@ -1,4 +1,6 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { defaultSaveTag, isSaveTag } from "@/lib/assistant/save-note";
 import { latestNote, latestNoteLabel } from "@/lib/bench/latest-note";
 import {
   buildListQuery,
@@ -10,7 +12,7 @@ import {
   placeInList,
   placeLabel,
 } from "@/lib/bench/list-place";
-import { DEFAULT_NOTE_TAG, NOTE_TAG_OPTIONS } from "@/lib/bench/note-tag-options";
+import { DEFAULT_NOTE_TAG, NOTE_TAG_OPTIONS, SAVE_TAG_OPTIONS } from "@/lib/bench/note-tag-options";
 import { draftKey, draftLauncherLabel, parseDraft } from "@/lib/bench/draft";
 import { pendingPhrase } from "@/lib/bench/pending-phrase";
 
@@ -131,5 +133,25 @@ describe("note tag options", () => {
       "",
     ]);
     expect(DEFAULT_NOTE_TAG).toBe("finding");
+  });
+
+  it("keeps Untagged off the save sheet, because that action rejects an empty tag", () => {
+    expect(SAVE_TAG_OPTIONS.map((option) => option.label)).toEqual([
+      "Finding",
+      "Work done",
+      "Parts",
+      "Customer contact",
+      "Quote agreed",
+      "Other",
+    ]);
+    expect(SAVE_TAG_OPTIONS.some((option) => option.label === "Untagged" || option.value === "")).toBe(false);
+    for (const option of SAVE_TAG_OPTIONS) {
+      expect(isSaveTag(option.value)).toBe(true);
+    }
+    expect(defaultSaveTag()).toBe("finding");
+    expect(SAVE_TAG_OPTIONS.some((option) => option.value === defaultSaveTag())).toBe(true);
+    const chat = readFileSync("src/app/ask/chat.tsx", "utf8");
+    expect(chat).toContain("SAVE_TAG_OPTIONS");
+    expect(chat).not.toContain("NOTE_TAG_OPTIONS");
   });
 });
