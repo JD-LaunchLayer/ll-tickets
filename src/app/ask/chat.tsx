@@ -3,18 +3,24 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { saveAssistantNoteAction } from "@/app/ask/actions";
 import { ErrorPanel } from "@/app/bench/error-panel";
+import { SendIcon } from "@/app/bench/icons";
+import { useOffline } from "@/app/bench/providers";
+import { Sheet, type SheetHandle } from "@/app/bench/sheet";
+import { usePendingPhrase } from "@/app/bench/use-pending-phrase";
 import { NOT_CONFIGURED_MESSAGE, suggestionDraft, suggestionsFor } from "@/lib/assistant/copy";
 import { HISTORY_MESSAGE_LIMIT } from "@/lib/assistant/limit";
 import { splitReply } from "@/lib/assistant/reply";
 import { defaultSaveTag } from "@/lib/assistant/save-note";
+import { NOTE_TAG_OPTIONS } from "@/lib/bench/note-tag-options";
 import { idleForm, type FormState } from "@/lib/bench/form-state";
-import { NOTE_TAGS, NOTE_TAG_LABELS, type NoteTag } from "@/lib/jobs/domain";
 
 type StoredMessage = {
   role: "user" | "assistant";
   text: string;
   reason?: string;
 };
+
+type SaveDraft = { text: string; tag: string };
 
 const STORED_LIMIT = 40;
 
@@ -104,40 +110,56 @@ function readStored(raw: string | null): StoredMessage[] {
   }
 }
 
-export function AskChat({
-  configured,
-  scopeRef,
-  detail,
-}: {
-  configured: boolean;
-  scopeRef: string | null;
-  detail?: string;
-}) {
+export function AskClear({ scopeRef }: { scopeRef: string | null }) {
+  return (
+    <button
+      className="bar-text-btn"
+      type="button"
+      onClick={() => {
+        sessionStorage.removeItem(storageKey(scopeRef));
+        window.dispatchEvent(new Event(THREAD_EVENT));
+      }}
+    >
+      Clear
+    </button>
+  );
+}
+
+export function AskChat({ configured, scopeRef }: { configured: boolean; scopeRef: string | null }) {
   const key = storageKey(scopeRef);
   const messages = useThread(key);
+  const offline = useOffline();
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
-  const [sheet, setSheet] = useState<{ text: string; tag: NoteTag } | null>(null);
+  const [sheet, setSheet] = useState<SaveDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<FormState>(idleForm);
   const [toast, setToast] = useState<string | null>(null);
+  const savePhrase = usePendingPhrase(saving, "Saving…", "Save");
   const endRef = useRef<HTMLDivElement>(null);
   const draftRef = useRef<HTMLTextAreaElement>(null);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
+  const sheetRef = useRef<SheetHandle>(null);
+  const restoreRef = useRef<HTMLButtonElement>(null);
+  const originRef = useRef<string | null>(null);
+  const saveDrafts = useRef(new Map<string, SaveDraft>());
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages, pending]);
 
   useEffect(() => {
+    const node = draftRef.current;
+    if (!node) return;
+    node.style.height = "auto";
+    node.style.height = `${node.scrollHeight}px`;
+  }, [draft]);
+
+  useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(null), 2500);
     return () => window.clearTimeout(timer);
   }, [toast]);
-
-  function clear() {
-    sessionStorage.removeItem(key);
-    window.dispatchEvent(new Event(THREAD_EVENT));
-  }
 
   async function sendText(text: string) {
     const line = text.trim();
@@ -190,7 +212,17 @@ export function AskChat({
 
   function openSave(text: string) {
     setSaveError(idleForm);
-    setSheet({ text, tag: defaultSaveTag() });
+    originRef.current = text;
+    const kept = saveDrafts.current.get(text);
+    sheetRef.current?.prepare();
+    setSheet(kept ?? { text, tag: defaultSaveTag() });
+    noteRef.current?.focus();
+  }
+
+  function keepAndClose() {
+    if (saving) return;
+    if (sheet && originRef.current) saveDrafts.current.set(originRef.current, sheet);
+    setSheet(null);
   }
 
   async function confirmSave() {
@@ -208,6 +240,8 @@ export function AskChat({
         setSaveError(result);
         return;
       }
+      if (originRef.current) saveDrafts.current.delete(originRef.current);
+      originRef.current = null;
       setSheet(null);
       setToast("Saved to notes.");
     } catch {
@@ -225,32 +259,31 @@ export function AskChat({
 
   return (
     <div className="chat">
-      <div className="job-card-top">
-        {detail ? <p className="muted">{detail}</p> : <span />}
-        <button className="tech-btn-quiet" type="button" onClick={clear}>
-          Clear
-        </button>
-      </div>
       <div className="chat-log" aria-live="polite">
         {suggestions.length > 0 ? (
-          <div className="job-list">
-            <p className="muted">{scopeRef ? "What do you want to check?" : "Ask about the jobs on the bench."}</p>
-            <div className="chip-row">
-              {suggestions.map((prompt) => (
-                <button key={prompt} className="chip" type="button" onClick={() => pickSuggestion(prompt)}>
-                  {prompt}
-                </button>
-              ))}
-            </div>
+          <div className="suggest-list">
+            <p className="prompt-line">{scopeRef ? "What do you want to check?" : "Ask about the jobs on the bench."}</p>
+            {suggestions.map((prompt) => (
+              <button key={prompt} className="suggest-btn" type="button" onClick={() => pickSuggestion(prompt)}>
+                {prompt}
+              </button>
+            ))}
           </div>
         ) : null}
         <ul className="chat-list">
           {messages.map((message, index) => (
-            <li key={`${message.role}-${index}`} className={message.role === "user" ? "bubble bubble-user" : "bubble bubble-assistant"}>
+            <li key={`${message.role}-${index}`} className={message.role === "user" ? "bubble bubble-user" : "reply-block"}>
               {message.role === "assistant" ? <ReplyBody text={message.text} /> : <p>{message.text}</p>}
               {message.reason ? <p className="bubble-reason">{message.reason}</p> : null}
               {message.role === "assistant" && scopeRef ? (
-                <button className="tech-btn-quiet" type="button" onClick={() => openSave(message.text)}>
+                <button
+                  className="tech-btn-quiet save-note-btn"
+                  type="button"
+                  onClick={(event) => {
+                    restoreRef.current = event.currentTarget;
+                    openSave(message.text);
+                  }}
+                >
                   Save to notes
                 </button>
               ) : null}
@@ -270,7 +303,7 @@ export function AskChat({
         </p>
       ) : null}
       <form onSubmit={send} className="composer">
-        <label className="field-label" htmlFor="ask-text">
+        <label className="sr-only" htmlFor="ask-text">
           Message
         </label>
         <textarea
@@ -280,66 +313,66 @@ export function AskChat({
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           placeholder={scopeRef ? "Ask about this fault" : "Ask the record"}
-          rows={3}
+          rows={1}
+          maxLength={4000}
           enterKeyHint="send"
-          disabled={pending}
+          readOnly={pending}
         />
-        <button className="tech-btn-primary" type="submit" disabled={pending || !draft.trim()}>
-          Send
+        <button className="send-btn" type="submit" aria-label="Send" disabled={pending || !draft.trim()}>
+          <SendIcon />
         </button>
       </form>
-      {sheet && scopeRef ? (
-        <div className="sheet-backdrop">
-          <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="save-note-title">
-            <h2 id="save-note-title" className="page-title">
-              Save to notes
-            </h2>
-            <p className="muted">Nothing is filed until you tap Save.</p>
-            <label className="field">
-              <span className="field-label">Note</span>
-              <textarea
-                value={sheet.text}
-                onChange={(event) => setSheet({ ...sheet, text: event.target.value })}
-                rows={6}
-                maxLength={4000}
-              />
-            </label>
-            <fieldset>
-              <legend className="field-label">Tag</legend>
-              <div className="chip-row">
-                {NOTE_TAGS.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    className="chip"
-                    aria-pressed={tag === sheet.tag}
-                    onClick={() => setSheet({ ...sheet, tag })}
-                  >
-                    {NOTE_TAG_LABELS[tag]}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-            {saveError.error ? <ErrorPanel message={saveError.error} reason={saveError.reason} /> : null}
-            <div className="sheet-actions">
-              <button
-                className="tech-btn-secondary"
-                type="button"
-                disabled={saving}
-                onClick={() => {
-                  setSheet(null);
-                  setSaveError(idleForm);
-                }}
-              >
-                Cancel
-              </button>
-              <button className="tech-btn-primary" type="button" disabled={saving} onClick={() => void confirmSave()}>
-                {saving ? "Saving…" : "Save"}
-              </button>
-            </div>
-          </div>
+      <Sheet
+        ref={sheetRef}
+        open={sheet !== null}
+        title="Save to notes"
+        showClose={false}
+        onClose={keepAndClose}
+        initialFocusRef={noteRef}
+        restoreFocusRef={restoreRef}
+      >
+        <p className="muted sheet-lead">Nothing is filed until you tap Save.</p>
+        <label className="field">
+          <span className="field-label">Note</span>
+          <textarea
+            ref={noteRef}
+            className="save-text-input"
+            value={sheet?.text ?? ""}
+            onChange={(event) => setSheet((current) => (current ? { ...current, text: event.target.value } : current))}
+            rows={6}
+            maxLength={4000}
+            readOnly={saving}
+          />
+        </label>
+        <label className="field">
+          <span className="field-label">Tag</span>
+          <select
+            className="select-control"
+            value={sheet?.tag ?? defaultSaveTag()}
+            aria-disabled={saving || undefined}
+            onChange={(event) => {
+              if (saving) return;
+              const tag = event.target.value;
+              setSheet((current) => (current ? { ...current, tag } : current));
+            }}
+          >
+            {NOTE_TAG_OPTIONS.map((option) => (
+              <option key={option.label} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {saveError.error ? <ErrorPanel message={saveError.error} reason={saveError.reason} /> : null}
+        <div className="sheet-actions">
+          <button className="tech-btn-secondary" type="button" disabled={saving} onClick={keepAndClose}>
+            Cancel
+          </button>
+          <button className="tech-btn-primary" type="button" disabled={saving || offline} onClick={() => void confirmSave()}>
+            {savePhrase}
+          </button>
         </div>
-      ) : null}
+      </Sheet>
     </div>
   );
 }
