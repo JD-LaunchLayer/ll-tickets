@@ -15,4 +15,12 @@ Do these in order. The phone view is not part of this version. Jobs are filed by
 
 The GPT must not be given a way to text or email customers. There is no such action.
 
+## Descriptions the importer would not accept
+
+ChatGPT Actions rejects an operation description longer than 300 characters. `find_jobs` and `set_status` are shortened in `docs/gpt-actions.openapi.json`, which is what `GET /openapi.json` serves. The calls are unchanged. The longer wording is below.
+
+**find_jobs.** Use it to decide which job Jordan means, or to list work in progress. Filter by `customer_name`, `device`, `ref`, or `status`. If `status` is omitted, only active jobs are returned (everything except `collected` and `closed_no_repair`). Read each `summary_line` before choosing a job. The phone number is never returned.
+
+**set_status.** Confirm before a status change in the GPT instructions; the spec does not repeat that. Allowed statuses: `new`, `diagnosing`, `waiting_on_parts`, `waiting_on_customer`, `ready`, `collected`, `closed_no_repair`. `price_basis` `estimate` is not binding. `quote` is only for an agreed fixed price, and the server sets `price_agreed_at` when you do not send one. Sending the current status is allowed when you only need to update `price`, `next_move`, `access_given`, `backup_position`, or `follow_up_at`.
+
 Suggested privacy wording for customers, for you to approve before anyone sees it, is in [privacy-note.md](privacy-note.md).
