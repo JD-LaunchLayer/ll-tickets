@@ -148,6 +148,10 @@ function requireRef(value: unknown): ParseOk<string> | ParseFail {
   return { ok: true, value: ref };
 }
 
+export function parseNextMove(value: unknown): ParseOk<string> | ParseFail {
+  return oneLine(value, "next_move", 180);
+}
+
 function oneLine(value: unknown, field: string, max: number): ParseOk<string> | ParseFail {
   if (typeof value !== "string") return { ok: false, message: `${field} is required.` };
   const trimmed = value.trim();

@@ -1,29 +1,125 @@
-import { signOut } from "@/app/login/actions";
-import { requireOwnerSession } from "@/lib/auth/session";
-import { ORG } from "@/lib/org";
+import Link from "next/link";
+import { BenchShell } from "@/app/bench/shell";
+import { ownerContext } from "@/lib/bench/context";
+import { listBenchJobs, type BenchListRow } from "@/lib/bench/jobs";
+import { STATUS_LABELS } from "@/lib/jobs/domain";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
-  const session = await requireOwnerSession();
+function listHref(finished: boolean, q: string): string {
+  const params = new URLSearchParams();
+  if (q.trim()) params.set("q", q.trim());
+  if (finished) params.set("finished", "1");
+  const query = params.toString();
+  return query ? `/?${query}` : "/";
+}
+
+function JobRow({ row }: { row: BenchListRow }) {
+  return (
+    <li>
+      <Link
+        href={`/jobs/${row.ref}`}
+        className="block min-h-12 rounded-lg border border-slate-200 bg-white px-4 py-3 active:bg-slate-50"
+      >
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="font-mono text-sm font-semibold">{row.ref}</span>
+          <span className="text-sm text-slate-600">{STATUS_LABELS[row.status]}</span>
+        </div>
+        <p className="mt-1 text-base font-medium">{row.customerName}</p>
+        <p className="text-sm text-slate-700">{row.deviceLabel}</p>
+        <p className="mt-1 text-sm">{row.nextMove}</p>
+      </Link>
+    </li>
+  );
+}
+
+function tabClass(current: boolean): string {
+  return current
+    ? "flex min-h-12 w-full items-center justify-center rounded-lg bg-[#3b82f6] px-3 text-center text-sm font-semibold text-white"
+    : "flex min-h-12 w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-center text-sm font-semibold text-slate-800";
+}
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string | string[]; finished?: string | string[] }>;
+}) {
+  const query = await searchParams;
+  const rawQ = Array.isArray(query.q) ? query.q[0] : query.q;
+  const rawFinished = Array.isArray(query.finished) ? query.finished[0] : query.finished;
+  const q = rawQ ?? "";
+  const includeFinished = rawFinished === "1";
+
+  const { repo } = await ownerContext();
+  let active: BenchListRow[] = [];
+  let finished: BenchListRow[] = [];
+  let loadError: string | null = null;
+  try {
+    const listed = await listBenchJobs(repo, { search: q, includeFinished });
+    active = listed.active;
+    finished = listed.finished;
+  } catch {
+    loadError = "Could not load jobs.";
+  }
+
+  const empty = active.length === 0 && finished.length === 0;
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-4 py-8">
-      <p className="text-sm font-semibold text-[#3b82f6]">{ORG.name}</p>
-      <h1 className="mt-1 text-2xl font-semibold tracking-tight">Jobs</h1>
-      <p className="mt-3 text-sm text-slate-700">
-        Signed in as {session.user.email}. Jobs are filed by talking to the GPT. The phone view is
-        not in this version.
-      </p>
-      <p className="mt-3 text-sm text-slate-600">
-        The action spec is at <code>/openapi.json</code>. Setup steps are in{" "}
-        <code>docs/gpt-setup.md</code>.
-      </p>
-      <form action={signOut} className="mt-6">
+    <BenchShell title="Jobs" showSignOut>
+      <form action="/" method="get" className="space-y-3">
+        {includeFinished ? <input type="hidden" name="finished" value="1" /> : null}
+        <label className="field">
+          <span className="field-label">Search</span>
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Name, device or ref"
+            autoComplete="off"
+            enterKeyHint="search"
+          />
+        </label>
         <button className="tech-btn-primary" type="submit">
-          Sign out
+          Search
         </button>
       </form>
-    </main>
+      <div className="grid grid-cols-2 gap-2">
+        <Link href={listHref(false, q)} className={tabClass(!includeFinished)} aria-current={!includeFinished ? "page" : undefined}>
+          On the bench
+        </Link>
+        <Link href={listHref(true, q)} className={tabClass(includeFinished)} aria-current={includeFinished ? "page" : undefined}>
+          Include finished
+        </Link>
+      </div>
+      <Link href="/jobs/new" className="tech-btn-secondary">
+        New job
+      </Link>
+      {loadError ? (
+        <p className="text-sm text-red-700" role="alert">
+          {loadError}
+        </p>
+      ) : null}
+      {!loadError && empty ? (
+        <p className="text-sm text-slate-600">
+          {q.trim() ? "Nothing matches that search." : "No jobs on the bench."}
+        </p>
+      ) : null}
+      {active.length > 0 ? (
+        <ul className="flex flex-col gap-2">
+          {active.map((row) => (
+            <JobRow key={row.ref} row={row} />
+          ))}
+        </ul>
+      ) : null}
+      {finished.length > 0 ? (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-semibold text-slate-600">Finished</h2>
+          <ul className="flex flex-col gap-2">
+            {finished.map((row) => (
+              <JobRow key={row.ref} row={row} />
+            ))}
+          </ul>
+        </section>
+      ) : null}
+    </BenchShell>
   );
 }

@@ -24,8 +24,7 @@ export default async function LoginPage({
       <p className="text-sm font-semibold text-[#3b82f6]">{ORG.name}</p>
       <h1 className="mt-1 text-2xl font-semibold tracking-tight">Jobs</h1>
       <p className="mt-1 text-sm text-slate-600">
-        {ORG.shop}. Sign in with the owner email link. The phone view comes later; jobs are filed
-        through the GPT.
+        {ORG.shop}. Sign in with the owner email link.
       </p>
       {linkError ? (
         <p className="mt-4 text-sm text-red-700" role="alert">

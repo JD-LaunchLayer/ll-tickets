@@ -1,17 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isOwnerEmail } from "@/lib/auth/owner";
+import { isPublicPath } from "@/lib/auth/public-paths";
 import { getSupabaseKey, getSupabaseUrl, isSupabaseConfigured } from "@/lib/supabase/env";
-
-function isPublicPath(path: string): boolean {
-  return (
-    path.startsWith("/login") ||
-    path.startsWith("/auth") ||
-    path.startsWith("/api/actions") ||
-    path.startsWith("/api/cron") ||
-    path === "/openapi.json"
-  );
-}
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });

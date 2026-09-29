@@ -2,7 +2,6 @@ import { bearerMatches } from "@/lib/auth/api-key";
 import { takeRateLimit } from "@/lib/auth/rate-limit";
 import type { CalendarPort } from "@/lib/calendar/types";
 import {
-  closedAtAfterStatusChange,
   jobEcho,
   summaryLine,
   toPublicJob,
@@ -11,6 +10,7 @@ import {
   type Note,
 } from "@/lib/jobs/domain";
 import { canonicalJobRef } from "@/lib/jobs/ref";
+import { applyStatusChange, fileNote } from "@/lib/jobs/record";
 import type { JobRepository } from "@/lib/jobs/repository";
 import {
   parseAddNote,
@@ -142,6 +142,7 @@ async function write(
         accessGiven: parsed.value.accessGiven,
         followUpAt: parsed.value.followUpAt,
         createdAt: now.toISOString(),
+        phone: null,
       });
       return { ok: true, status: 200, body: toPublicJob(job), jobId: job.id };
     });
@@ -153,28 +154,22 @@ async function write(
     const job = await repo.getJobByRef(parsed.value.ref);
     if (!job) return fail(404, "not_found", "No job with that ref.", null, parsed.value.ref);
     return commit(repo, operation, parsed.value.clientRequestId, hash, now, async () => {
-      const note = await repo.addNote({
-        jobId: job.id,
+      const filed = await fileNote(repo, {
+        job,
         text: parsed.value.text,
         summary: parsed.value.summary,
         tag: parsed.value.tag,
         amountGbp: parsed.value.amountGbp,
         partDetail: parsed.value.partDetail,
-        createdAt: now.toISOString(),
+        ...(parsed.value.nextMove ? { nextMove: parsed.value.nextMove } : {}),
         clientRequestId: parsed.value.clientRequestId,
+        now,
       });
-      let current = job;
-      if (parsed.value.nextMove) {
-        current = await repo.updateJob(job.id, {
-          nextMove: parsed.value.nextMove,
-          updatedAt: now.toISOString(),
-        });
-      }
       return {
         ok: true,
         status: 200,
-        body: { ...jobEcho(current), note: toPublicNote(note) },
-        jobId: current.id,
+        body: { ...jobEcho(filed.job), note: toPublicNote(filed.note) },
+        jobId: filed.job.id,
       };
     });
   }
@@ -214,26 +209,18 @@ async function write(
     if (!parsed.ok) return fail(400, "validation_error", parsed.message);
     const job = await repo.getJobByRef(parsed.value.ref);
     if (!job) return fail(404, "not_found", "No job with that ref.", null, parsed.value.ref);
-    const closedAt = closedAtAfterStatusChange(job, parsed.value.status, now.toISOString());
     return commit(repo, operation, parsed.value.clientRequestId, hash, now, async () => {
-      const price = parsed.value.price;
-      const updated = await repo.updateJob(job.id, {
+      const updated = await applyStatusChange(repo, {
+        job,
         status: parsed.value.status,
-        closedAt,
-        updatedAt: now.toISOString(),
         ...(parsed.value.nextMove ? { nextMove: parsed.value.nextMove } : {}),
-        ...(price !== "unchanged"
-          ? {
-              priceGbp: price.priceGbp,
-              priceBasis: price.priceBasis,
-              priceAgreedAt: price.priceAgreedAt,
-            }
-          : {}),
+        price: parsed.value.price,
         ...(parsed.value.backupPosition !== undefined
           ? { backupPosition: parsed.value.backupPosition }
           : {}),
         ...(parsed.value.accessGiven !== undefined ? { accessGiven: parsed.value.accessGiven } : {}),
         ...(parsed.value.followUpAt !== undefined ? { followUpAt: parsed.value.followUpAt } : {}),
+        now,
       });
       return { ok: true, status: 200, body: toPublicJob(updated), jobId: updated.id };
     });
