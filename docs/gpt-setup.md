@@ -1,6 +1,6 @@
 # GPT setup
 
-Do these in order. Jobs are filed by talking to the custom GPT, or by Ask the record on the phone. The same records are used either way. The custom GPT stays supported. The Action API is unchanged.
+Do these in order. Jobs are filed by talking to the custom GPT, or on the phone. Ask the record on the phone helps him diagnose a fault. It reads the same records and does not file them. The custom GPT stays supported. The Action API is unchanged.
 
 1. Deploy this app (Vercel is the intended host) and set the environment variables in [environment.md](environment.md). The Action API will not start until `ACTIONS_API_KEY` and the Supabase service role are set.
 2. In the Supabase SQL editor, run `supabase/migrations/20260929120000_jobs.sql`. Then run `supabase/migrations/20260929190000_assistant_daily_usage.sql` if you want Ask the record. Then run `supabase/manual/owner-allowlist.sql` with your email. Details are in [environment.md](environment.md).

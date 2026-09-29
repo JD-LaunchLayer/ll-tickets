@@ -1,8 +1,8 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { NOT_CONFIGURED_MESSAGE } from "@/lib/assistant/copy";
 
-/** Small non-reasoning model, so a short reply still comes back. Override with ASSISTANT_MODEL. */
-export const DEFAULT_ASSISTANT_MODEL = "gpt-4.1-mini";
+/** Diagnosis wants a stronger model. Still cheap at his volume. Override with ASSISTANT_MODEL. */
+export const DEFAULT_ASSISTANT_MODEL = "gpt-4.1";
 
 export function assistantApiKey(): string {
   return process.env.OPENAI_API_KEY?.trim() ?? "";

@@ -2,7 +2,7 @@ export const DEFAULT_DAILY_MESSAGE_LIMIT = 200;
 
 export const HISTORY_MESSAGE_LIMIT = 12;
 
-export const MAX_OUTPUT_TOKENS = 400;
+export const MAX_OUTPUT_TOKENS = 900;
 
 /** Tool rounds, then the loop stops. A plain reply is one step. */
 export const TOOL_STEP_LIMIT = 4;

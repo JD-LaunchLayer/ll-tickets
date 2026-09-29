@@ -15,7 +15,7 @@ Nothing in this list is a real secret. Put real values in Vercel → Project →
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Server | The whole service-account JSON key, as one line. Not committed |
 | `CRON_SECRET` | Server | Bearer token for `GET /api/cron/purge-photos` |
 | `OPENAI_API_KEY` | Server only | Ask the record. If it is unset, the phone shows “Assistant is not set up yet.” Never expose it to the browser or the GPT. Never commit a real key |
-| `ASSISTANT_MODEL` | Server | Optional. Model name for Ask the record. Default `gpt-4.1-mini` |
+| `ASSISTANT_MODEL` | Server | Optional. Model name for Ask the record. Default `gpt-4.1` |
 | `ASSISTANT_DAILY_MESSAGE_LIMIT` | Server | Optional. In-app assistant messages per UTC day. Default 200. The count is in `assistant_daily_usage`. The chat itself is not stored |
 
 `VERCEL_URL` is set by Vercel. If `NEXT_PUBLIC_SITE_URL` is empty, the OpenAPI server URL falls back to it, then to `http://localhost:3000`.
@@ -88,6 +88,6 @@ select id, public from storage.buckets where id = 'job-photos';
 - `add_note` may update `next_move`. It does not change status or the job price. A part amount on a note stays on the note.
 - The Action API rate limit defaults to 60 requests a minute per server instance. It is not shared across instances.
 - Signed photo URLs last 5 minutes. The Action API does not issue them. The phone view does, for the signed-in owner only.
-- Ask the record uses the owner’s signed-in session and the same validation as the actions. It does not call `create_collection_event`. The GPT and `GET /openapi.json` are unchanged.
-- The assistant’s daily count is one row per UTC day. A reply is at most 400 output tokens, the model sees the last 12 messages, and a turn stops after 4 tool steps. Chat text stays in the browser.
+- Ask the record uses the owner’s signed-in session. It can read a job and search jobs. It does not create jobs, file notes, edit notes, or set status, and it does not call `create_collection_event`. He saves a reply from the confirmation sheet, which files through the same note path as the job page. The GPT and `GET /openapi.json` are unchanged.
+- The assistant’s daily count is one row per UTC day. A reply is at most 900 output tokens, the model sees the last 12 messages, and a turn stops after 4 tool steps. The current job, including its notes, is sent again on every turn. Chat text stays in the browser.
 - Idempotency stores a successful response only. A failed write releases the id so the same retry can proceed. Two identical in-flight writes: the second is told the first is still in progress.

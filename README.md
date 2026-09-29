@@ -1,6 +1,6 @@
 # ll-tickets
 
-LaunchLayer workshop jobs for Jordan Duggins’ Wickford repair bench. He talks to a custom GPT, or to Ask the record on his phone. Both file the same thin job and the same stream of notes. The phone view is for the bench: find the job, file a note, set the next move, add a photo, and talk to the record. The custom GPT stays supported.
+LaunchLayer workshop jobs for Jordan Duggins’ Wickford repair bench. He talks to a custom GPT, which files the job, or he uses the phone. Ask the record on the phone is a diagnosing buddy: it does not file notes. The phone view is for the bench: find the job, file a note, set the next move, add a photo, and reason through the fault. The custom GPT stays supported.
 
 British English.
 
@@ -9,7 +9,7 @@ British English.
 - A job is a ref, a customer name, a device, the reported fault, a status, one next step, an optional price (estimate or quote), backup position, whether access was given, and an optional collection time.
 - Everything else is a note. Edits keep the previous wording.
 - The GPT sees the customer name and the device. It never sees the phone number and never sees photo files.
-- The phone view, after the owner email link, lists active jobs, opens a job, files a note, changes status and the next move, creates a job (with an optional phone number), and adds a photo. Photos are private and removed 12 months after the job closes. Ask the record, from the jobs list or from a job, files and reads through the same record. On a job page the chat applies to that job. The chat thread stays in the browser. The assistant never sees the phone number.
+- The phone view, after the owner email link, lists active jobs, opens a job, files a note, changes status and the next move, creates a job (with an optional phone number), and adds a photo. Photos are private and removed 12 months after the job closes. Ask the record reads the job and can search past jobs. On a job page the chat applies to that job. A reply is saved only if he taps Save to notes and confirms. The chat thread stays in the browser. The assistant never sees the phone number.
 - The Action API is seven operations, protected by a bearer API key. See `docs/gpt-actions.openapi.json` and `GET /openapi.json`. Ask the record does not replace it.
 
 ## What it is not
@@ -39,7 +39,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and request a sign-in link. After sign-in you get the job list. Jobs can be filed through Ask the record or through the GPT. Without `OPENAI_API_KEY`, Ask the record shows “Assistant is not set up yet.” The GPT keeps working either way.
+Open [http://localhost:3000](http://localhost:3000) and request a sign-in link. After sign-in you get the job list. Jobs are filed on the phone, or through the GPT. Without `OPENAI_API_KEY`, Ask the record shows “Assistant is not set up yet.” The GPT keeps working either way.
 
 ```bash
 npm test
