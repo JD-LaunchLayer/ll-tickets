@@ -29,22 +29,74 @@ body {
   line-height: 1.4;
 }
 
-.tech-btn-primary {
+.tech-btn-primary,
+.tech-btn-secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 2.75rem;
+  min-height: 3rem;
   padding: 0.5rem 0.875rem;
   border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.tech-btn-primary {
   background: #3b82f6;
   color: #fff;
-  font-weight: 600;
-  font-size: 0.9375rem;
   border: 1px solid #2563eb;
 }
 
-.tech-btn-primary:disabled {
+.tech-btn-secondary {
+  background: #fff;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+}
+
+.tech-btn-quiet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: #334155;
+}
+
+.field {
+  display: block;
+}
+
+.field-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.field input,
+.field textarea,
+.field select {
+  margin-top: 0.25rem;
+  width: 100%;
+  min-height: 3rem;
+  border-radius: 0.5rem;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  padding: 0.625rem 0.75rem;
+  font-size: 1rem;
+}
+
+.field textarea {
+  min-height: 6.5rem;
+  resize: vertical;
+}
+
+.tech-btn-primary:disabled,
+.tech-btn-secondary:disabled {
   opacity: 0.55;
 }
 

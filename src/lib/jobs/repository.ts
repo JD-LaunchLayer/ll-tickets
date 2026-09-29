@@ -5,6 +5,7 @@ import type {
   Note,
   NoteRevision,
   NoteTag,
+  Photo,
   PriceBasis,
 } from "@/lib/jobs/domain";
 
@@ -20,6 +21,8 @@ export type NewJob = {
   accessGiven: boolean | null;
   followUpAt: string | null;
   createdAt: string;
+  /** Phone view only. The Action API passes null. */
+  phone: string | null;
 };
 
 export type JobPatch = {
@@ -55,6 +58,15 @@ export type NotePatch = {
   amountGbp?: number | null;
   partDetail?: string | null;
   editedAt: string;
+};
+
+export type NewPhoto = {
+  id?: string;
+  jobId: string;
+  noteId?: string | null;
+  storagePath: string;
+  takenAt: string;
+  caption: string | null;
 };
 
 export type FindQuery = {
@@ -101,6 +113,8 @@ export interface JobRepository {
   editNote(id: string, patch: NotePatch): Promise<{ note: Note; revision: NoteRevision }>;
   listNotes(jobId: string): Promise<Note[]>;
   listPhotoCaptions(jobId: string): Promise<{ count: number; captions: Array<string | null> }>;
+  listPhotos(jobId: string): Promise<Photo[]>;
+  addPhoto(input: NewPhoto): Promise<Photo>;
   listRevisions(noteId: string): Promise<NoteRevision[]>;
   claimIdempotency(input: {
     clientRequestId: string;

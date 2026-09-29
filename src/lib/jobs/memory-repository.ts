@@ -1,5 +1,11 @@
 import { randomUUID } from "crypto";
-import { closedAtAfterStatusChange, type Job, type Note, type NoteRevision } from "@/lib/jobs/domain";
+import {
+  closedAtAfterStatusChange,
+  type Job,
+  type Note,
+  type NoteRevision,
+  type Photo,
+} from "@/lib/jobs/domain";
 import { generateJobRef } from "@/lib/jobs/ref";
 import type {
   AuditEntry,
@@ -11,6 +17,7 @@ import type {
   JobRepository,
   NewJob,
   NewNote,
+  NewPhoto,
   NotePatch,
 } from "@/lib/jobs/repository";
 
@@ -24,15 +31,7 @@ export class MemoryJobRepository implements JobRepository {
   readonly jobs: Job[] = [];
   readonly notes: Note[] = [];
   readonly revisions: NoteRevision[] = [];
-  readonly photos: Array<{
-    id: string;
-    jobId: string;
-    noteId: string | null;
-    storagePath: string;
-    takenAt: string;
-    caption: string | null;
-    createdAt: string;
-  }> = [];
+  readonly photos: Photo[] = [];
   readonly idempotency = new Map<string, IdempotencyRecord>();
   readonly audits: AuditEntry[] = [];
 
@@ -42,21 +41,18 @@ export class MemoryJobRepository implements JobRepository {
     job.phone = phone;
   }
 
-  addPhoto(input: {
-    jobId: string;
-    storagePath: string;
-    caption: string | null;
-    takenAt: string;
-  }): void {
-    this.photos.push({
-      id: randomUUID(),
+  async addPhoto(input: NewPhoto): Promise<Photo> {
+    const photo: Photo = {
+      id: input.id ?? randomUUID(),
       jobId: input.jobId,
-      noteId: null,
+      noteId: input.noteId ?? null,
       storagePath: input.storagePath,
       takenAt: input.takenAt,
       caption: input.caption,
       createdAt: input.takenAt,
-    });
+    };
+    this.photos.push(photo);
+    return photo;
   }
 
   async createJob(input: NewJob): Promise<Job> {
@@ -66,7 +62,6 @@ export class MemoryJobRepository implements JobRepository {
       id: randomUUID(),
       ref,
       customerName: input.customerName,
-      phone: null,
       deviceLabel: input.deviceLabel,
       reportedFault: input.reportedFault,
       status: "new",
@@ -76,6 +71,7 @@ export class MemoryJobRepository implements JobRepository {
       priceAgreedAt: input.priceAgreedAt,
       backupPosition: input.backupPosition,
       accessGiven: input.accessGiven,
+      phone: input.phone?.trim() || null,
       collectionAt: null,
       calendarEventId: null,
       followUpAt: input.followUpAt,
@@ -182,6 +178,12 @@ export class MemoryJobRepository implements JobRepository {
     return this.notes
       .filter((note) => note.jobId === jobId)
       .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  }
+
+  async listPhotos(jobId: string): Promise<Photo[]> {
+    return this.photos
+      .filter((photo) => photo.jobId === jobId)
+      .sort((a, b) => (a.takenAt > b.takenAt ? 1 : -1));
   }
 
   async listPhotoCaptions(jobId: string): Promise<{ count: number; captions: Array<string | null> }> {

@@ -49,7 +49,7 @@ The entry is private, 30 minutes long, timezone `Europe/London`, with no guests 
 
 If either variable is missing or the JSON has no `client_email` and `private_key`, `create_collection_event` returns `calendar_not_configured` and does not save a collection time. The other six actions keep working.
 
-The same module (`src/lib/calendar/google.ts`) is what the phone view should call later.
+Collection booking stays on the GPT. The phone view has no calendar button. `src/lib/calendar/google.ts` is what a later phone button should call.
 
 ## Photos
 
@@ -63,7 +63,13 @@ The route lists rows from `list_expired_job_photos()` and deletes the files with
 
 `supabase/manual/schedule-photo-retention.sql` is the alternative: enable `pg_cron` and run that file. It calls `purge_expired_job_photos()`, which deletes `storage.objects` rows. I could not verify that this also removes the file bytes on your project. Check the bucket after the first run. Prefer the application route.
 
-Phone-view uploads in the next version must strip location metadata before upload. This version has no upload screen.
+The phone view uploads from the job page. The browser redraws the photo to a JPEG (long edge about 1600 pixels, quality about 0.8) before upload, which drops location metadata. The file is stored in the private `job-photos` bucket and shown with a signed URL that lasts five minutes. No new environment variable is required. If `20260929120000_jobs.sql` has already been applied, the bucket, the `photos` table, and `jobs.phone` are already there. Confirm the bucket is private:
+
+```sql
+select id, public from storage.buckets where id = 'job-photos';
+```
+
+`public` must be false. If the row is missing, create it and the owner policies from that migration (the `job-photos` block). Do not make the bucket public.
 
 ## Decisions baked into this version
 
@@ -76,5 +82,5 @@ Phone-view uploads in the next version must strip location metadata before uploa
 - Reopening a closed job clears `closed_at`. Moving between `collected` and `closed_no_repair` keeps the original close time.
 - `add_note` may update `next_move`. It does not change status or the job price. A part amount on a note stays on the note.
 - The Action API rate limit defaults to 60 requests a minute per server instance. It is not shared across instances.
-- Signed photo URLs last 5 minutes. The Action API does not issue them.
+- Signed photo URLs last 5 minutes. The Action API does not issue them. The phone view does, for the signed-in owner only.
 - Idempotency stores a successful response only. A failed write releases the id so the same retry can proceed. Two identical in-flight writes: the second is told the first is still in progress.

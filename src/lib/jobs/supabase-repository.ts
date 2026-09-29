@@ -6,6 +6,7 @@ import {
   type Job,
   type Note,
   type NoteRevision,
+  type Photo,
 } from "@/lib/jobs/domain";
 import { generateJobRef } from "@/lib/jobs/ref";
 import type {
@@ -18,6 +19,7 @@ import type {
   JobRepository,
   NewJob,
   NewNote,
+  NewPhoto,
   NotePatch,
 } from "@/lib/jobs/repository";
 
@@ -28,6 +30,7 @@ type JobRow = Database["public"]["Tables"]["jobs"]["Row"];
 type NoteRow = Database["public"]["Tables"]["notes"]["Row"];
 type RevisionRow = Database["public"]["Tables"]["note_revisions"]["Row"];
 type IdempotencyRow = Database["public"]["Tables"]["action_idempotency"]["Row"];
+type PhotoRow = Database["public"]["Tables"]["photos"]["Row"];
 
 export class RepositoryError extends Error {
   constructor(message: string) {
@@ -98,6 +101,18 @@ function rowToRevision(row: RevisionRow): NoteRevision {
   };
 }
 
+function rowToPhoto(row: PhotoRow): Photo {
+  return {
+    id: row.id,
+    jobId: row.job_id,
+    noteId: row.note_id,
+    storagePath: row.storage_path,
+    takenAt: row.taken_at,
+    caption: row.caption,
+    createdAt: row.created_at,
+  };
+}
+
 function rowToIdempotency(row: IdempotencyRow): IdempotencyRecord {
   return {
     clientRequestId: row.client_request_id,
@@ -144,6 +159,7 @@ export class SupabaseJobRepository implements JobRepository {
           price_agreed_at: input.priceAgreedAt,
           backup_position: input.backupPosition,
           access_given: input.accessGiven,
+          phone: input.phone?.trim() || null,
           follow_up_at: input.followUpAt,
           created_at: input.createdAt,
           updated_at: input.createdAt,
@@ -296,6 +312,33 @@ export class SupabaseJobRepository implements JobRepository {
       .order("created_at", { ascending: false });
     if (error) throw new RepositoryError("Could not read notes.");
     return (data ?? []).map(rowToNote);
+  }
+
+  async listPhotos(jobId: string): Promise<Photo[]> {
+    const { data, error } = await this.client
+      .from("photos")
+      .select("*")
+      .eq("job_id", jobId)
+      .order("taken_at", { ascending: true });
+    if (error) throw new RepositoryError("Could not read photos.");
+    return (data ?? []).map(rowToPhoto);
+  }
+
+  async addPhoto(input: NewPhoto): Promise<Photo> {
+    const { data, error } = await this.client
+      .from("photos")
+      .insert({
+        ...(input.id ? { id: input.id } : {}),
+        job_id: input.jobId,
+        note_id: input.noteId ?? null,
+        storage_path: input.storagePath,
+        taken_at: input.takenAt,
+        caption: input.caption,
+      })
+      .select("*")
+      .single();
+    if (error || !data) throw new RepositoryError("Could not store the photo.");
+    return rowToPhoto(data);
   }
 
   async listPhotoCaptions(jobId: string): Promise<{ count: number; captions: Array<string | null> }> {

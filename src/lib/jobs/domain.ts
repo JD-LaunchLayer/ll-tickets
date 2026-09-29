@@ -35,6 +35,15 @@ export const NOTE_TAGS = [
 ] as const;
 export type NoteTag = (typeof NOTE_TAGS)[number];
 
+export const NOTE_TAG_LABELS: Record<NoteTag, string> = {
+  finding: "Finding",
+  work_done: "Work done",
+  parts: "Parts",
+  customer_contact: "Customer contact",
+  quote_auth: "Quote agreed",
+  other: "Other",
+};
+
 export const STATUS_LABELS: Record<JobStatus, string> = {
   new: "New",
   diagnosing: "Diagnosing",

@@ -1,6 +1,6 @@
 # GPT setup
 
-Do these in order. The phone view is not part of this version. Jobs are filed by talking to the custom GPT.
+Do these in order. Jobs are filed by talking to the custom GPT, and the same records are on the phone after the owner signs in.
 
 1. Deploy this app (Vercel is the intended host) and set the environment variables in [environment.md](environment.md). The Action API will not start until `ACTIONS_API_KEY` and the Supabase service role are set.
 2. In the Supabase SQL editor, run `supabase/migrations/20260929120000_jobs.sql`. Then run `supabase/manual/owner-allowlist.sql` with your email. Details are in [environment.md](environment.md).
