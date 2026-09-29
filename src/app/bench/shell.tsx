@@ -56,12 +56,12 @@ export function BenchShell({
           {barAction}
           {showSignOut ? <SignOutButton /> : null}
         </div>
-        {barSubtitle ? <p className="top-bar-sub">{barSubtitle}</p> : null}
       </header>
       <OfflineBanner />
       <main className={scrollClass}>
         {titlePlacement === "page" ? <h1 className="page-title">{title}</h1> : null}
         {titlePlacement === "sr" ? <h1 className="sr-only">{title}</h1> : null}
+        {barSubtitle ? <p className="top-bar-sub">{barSubtitle}</p> : null}
         {fill ? <div className="fill-rest">{children}</div> : children}
       </main>
       {dock ? <div className="dock">{dock}</div> : null}

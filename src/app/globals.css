@@ -63,11 +63,19 @@
 html {
   height: 100%;
   background: var(--canvas);
-  overflow-x: clip;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
-  min-height: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
   background: var(--canvas);
   color: var(--ink);
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
@@ -123,11 +131,14 @@ summary {
   margin: 0 auto;
   max-width: 32rem;
   overflow: hidden;
+  overscroll-behavior: none;
   background: var(--canvas);
 }
 
 .top-bar {
   flex: none;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   background: var(--canvas);
   color: var(--ink);
@@ -140,7 +151,9 @@ summary {
 .top-bar-row {
   display: flex;
   align-items: center;
+  flex: none;
   gap: var(--s1);
+  height: 56px;
   min-height: 56px;
 }
 
@@ -179,7 +192,8 @@ summary {
 }
 
 .top-bar-sub {
-  margin: 0 16px 8px 52px;
+  flex: none;
+  margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -235,7 +249,11 @@ summary {
 .app-scroll {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   padding-top: 16px;
   padding-bottom: 20px;
   padding-right: max(1rem, env(safe-area-inset-right));
@@ -278,6 +296,9 @@ summary {
   flex: none;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: 56px;
+  align-items: stretch;
+  justify-items: stretch;
   border-top: 1px solid var(--line);
   background: var(--surface);
   padding-bottom: env(safe-area-inset-bottom);
@@ -291,8 +312,9 @@ summary {
   align-items: center;
   justify-content: center;
   gap: 2px;
+  height: 100%;
   min-height: 56px;
-  padding: 8px 4px 6px;
+  padding: 0 4px;
   border-radius: 0;
   background: transparent;
   color: var(--body);
@@ -300,7 +322,20 @@ summary {
   font-size: 0.8125rem;
   font-weight: 600;
   line-height: 1rem;
+  text-align: center;
   text-decoration: none;
+}
+
+.top-bar,
+.tab-bar,
+.tab-link,
+.top-bar a,
+.top-bar button {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
 }
 
 .tab-link[aria-current="page"] {
@@ -995,6 +1030,8 @@ summary {
   width: min(32rem, 100%);
   max-height: calc(100dvh - env(safe-area-inset-top) - 16px - var(--kb, 0px));
   overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   border-radius: 20px 20px 0 0;
   border-top: 1px solid var(--edge);
   background: var(--surface);
@@ -1089,6 +1126,9 @@ summary {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1176,6 +1216,9 @@ summary {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1495,6 +1538,17 @@ fieldset {
 }
 
 @media (max-height: 480px) {
+  html,
+  body {
+    position: static;
+    top: auto;
+    left: auto;
+    width: auto;
+    height: auto;
+    max-height: none;
+    overflow: auto;
+  }
+
   .app-frame {
     height: auto;
     min-height: 100dvh;
@@ -1511,6 +1565,17 @@ fieldset {
   .action-bar {
     position: static;
   }
+}
+
+html[data-kb="1"],
+html[data-kb="1"] body {
+  position: static;
+  top: auto;
+  left: auto;
+  width: auto;
+  height: auto;
+  max-height: none;
+  overflow: auto;
 }
 
 html[data-kb="1"] .app-frame {
