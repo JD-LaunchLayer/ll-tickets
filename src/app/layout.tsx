@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LaunchLayer tickets",
-  description: "Solo-shop ticket tracking for LaunchLayer Wickford repair.",
+  title: "LaunchLayer jobs",
+  description: "Workshop job record for LaunchLayer Wickford repair.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
