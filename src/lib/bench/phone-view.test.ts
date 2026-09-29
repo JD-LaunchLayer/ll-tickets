@@ -94,8 +94,11 @@ describe("phone view", () => {
       [BRAND.accent, BRAND.surface],
       [BRAND.accent, BRAND.header],
       [BRAND.ink, BRAND.header],
-      [BRAND.ink, BRAND.logoPlate],
-      [BRAND.accentLight, BRAND.darkHeader],
+      [BRAND.headerInk, BRAND.header],
+      ["#000000", BRAND.header],
+      ["#0040B0", BRAND.header],
+      [BRAND.accentLight, BRAND.darkAccentTint],
+      [BRAND.ink, BRAND.accentLight],
       [BRAND.darkInk, BRAND.darkSurface],
       [BRAND.darkBody, BRAND.darkSurface],
       [BRAND.darkMuted, BRAND.darkSurface],
@@ -119,16 +122,37 @@ describe("phone view", () => {
     expect(pngSize("public/icons/apple-touch-icon.png")).toEqual({ width: 180, height: 180 });
 
     const css = readFileSync("src/app/globals.css", "utf8");
-    expect(css).toContain("--header: #fbfefe");
-    expect(css).toContain("--logo-plate: #fbfefe");
-    expect(css).toContain("--header: #000000");
-    expect(css).toMatch(/\.header-action\s*\{[^}]*color:\s*var\(--link\)/);
-    expect(css).toMatch(/\.brand-home\s*\{[^}]*background:\s*var\(--logo-plate\)/);
+    expect(css).toContain("--header: #f4f6fa");
+    expect(css).toContain("--header-line: #d5dce8");
+    expect(css).toContain("--header-ink: #0b1b3a");
+    expect(css.match(/--header:\s*#[0-9a-f]+/g)).toEqual(["--header: #f4f6fa"]);
+    expect(css).not.toContain("logo-plate");
+    expect(css).not.toContain("--header: #000000");
+    const darkTokens = css.slice(css.indexOf("@media (prefers-color-scheme: dark)"), css.indexOf("@theme"));
+    expect(darkTokens).not.toContain("--header");
+    expect(css).toMatch(/\.app-header\s*\{[^}]*background:\s*var\(--header\)/);
+    expect(css).toMatch(/\.app-header\s*\{[^}]*border-bottom:\s*1px solid var\(--header-line\)/);
+    expect(css).toMatch(/\.app-header\s*\{[^}]*padding-top:\s*env\(safe-area-inset-top\)/);
+    expect(css).toMatch(/\.app-header\s*\{[^}]*padding-left:\s*max\(1rem, env\(safe-area-inset-left\)\)/);
+    expect(css).toMatch(/\.app-scroll\s*\{[^}]*padding-left:\s*max\(1rem, env\(safe-area-inset-left\)\)/);
+    expect(css).toMatch(/\.header-action\s*\{[^}]*color:\s*var\(--header-ink\)/);
+    expect(css).toMatch(/\.header-action,[\s\S]*?min-height:\s*48px/);
+    expect(css).toMatch(/\.header-action,[\s\S]*?min-width:\s*48px/);
+    expect(css).toMatch(/\.tab-link,[\s\S]*?min-height:\s*48px/);
+    expect(css).toMatch(/\.app-header :focus-visible\s*\{[^}]*outline-color:\s*var\(--header-ink\)/);
+    expect(css).toMatch(/\.brand-logo\s*\{[^}]*height:\s*34px/);
+    expect(css).not.toMatch(/\.brand-home\s*\{[^}]*(background|border-radius|box-shadow)/);
     expect(css).not.toContain("408 / 280");
+    expect(css).toMatch(/\.search-field input::placeholder\s*\{[^}]*color:\s*var\(--muted\)/);
+    expect(css).toMatch(/\.search-field input::placeholder\s*\{[^}]*opacity:\s*1/);
+    expect(css).toMatch(/\.chip\s*\{[^}]*border:\s*1px solid var\(--line\)/);
+    expect(css).toMatch(/\.chip\s*\{[^}]*background:\s*var\(--surface\)/);
+    expect(css).toContain(BRAND.darkAccentTint.toLowerCase());
+    expect(css).toMatch(/\.toast\s*\{[^}]*color:\s*#0b2029/);
 
     const layout = readFileSync("src/app/layout.tsx", "utf8");
-    expect(layout).toContain("BRAND.themeColor");
-    expect(layout).toContain("BRAND.themeColorDark");
+    expect(layout.match(/BRAND\.themeColor/g)).toHaveLength(2);
+    expect(layout).not.toContain("themeColorDark");
     expect(layout).toContain('media: "(prefers-color-scheme: light)"');
     expect(layout).toContain('media: "(prefers-color-scheme: dark)"');
     expect(layout).toContain('statusBarStyle: "default"');
@@ -157,11 +181,12 @@ describe("phone view", () => {
     }
   });
 
-  it("crops the lockup onto the light plate so Launch and Layer both sit on a light ground", () => {
-    expect(BRAND.header).toBe(BRAND.surface);
+  it("crops the lockup onto the light band so Launch and Layer both sit on a light ground", () => {
+    expect(BRAND.header).toBe("#F4F6FA");
+    expect(BRAND.headerLine).toBe("#D5DCE8");
+    expect(BRAND.headerInk).toBe("#0B1B3A");
     expect(BRAND.themeColor).toBe(BRAND.header);
-    expect(BRAND.logoPlate).toBe("#FBFEFE");
-    expect(BRAND.themeColorDark).toBe(BRAND.darkHeader);
+    expect(BRAND.darkAccentTint).toBe("#102830");
 
     const logo = readPng("public/brand/image-0961fde4.png");
     const { x, y, width, height } = LOGO_CROP;
@@ -192,6 +217,7 @@ describe("phone view", () => {
     const mark = readFileSync("src/app/bench/brand-mark.tsx", "utf8");
     expect(mark).toContain("LOGO_CROP");
     expect(mark).toContain("/brand/image-0961fde4.png");
+    expect(mark).toContain('alt="LaunchLayer"');
     expect(mark).not.toContain("logo-dark");
     expect(mark).not.toContain("invert");
   });

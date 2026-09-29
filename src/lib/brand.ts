@@ -15,12 +15,14 @@ export const BRAND = {
   success: "#137738",
   danger: "#B02A2D",
   accentLight: "#B7D2FF",
-  /** Light header. Matches `surface` so the black "Launch" ink reads. */
-  header: "#FBFEFE",
-  /** Dark-scheme header. The logo sits on `logoPlate`, not on this colour. */
-  darkHeader: "#000000",
-  /** Fixed light plate. Must not follow the dark-scheme surface token. */
-  logoPlate: "#FBFEFE",
+  /** Header band. Same light ground in both schemes so the black "Launch" ink reads. */
+  header: "#F4F6FA",
+  /** 1px hairline under the header band. */
+  headerLine: "#D5DCE8",
+  /** Sign out and header links. Stays navy because the band stays light. */
+  headerInk: "#0B1B3A",
+  /** Dark-scheme fill behind the Waiting on parts badge. */
+  darkAccentTint: "#102830",
   onAccent: "#FBFEFE",
   darkInk: "#F7FBFC",
   darkBody: "#D5E3E8",
@@ -30,8 +32,8 @@ export const BRAND = {
   darkCanvas: "#0B2029",
   darkDanger: "#F0B4B5",
   darkSuccess: "#8FDBA8",
-  themeColor: "#FBFEFE",
-  themeColorDark: "#000000",
+  /** Status bar and manifest. Matches the header band in both schemes. */
+  themeColor: "#F4F6FA",
 } as const;
 
 /**
