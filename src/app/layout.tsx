@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
+import { BenchProviders } from "@/app/bench/providers";
 import { BRAND } from "@/lib/brand";
 import "./globals.css";
 
@@ -46,7 +47,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en-GB" className={`${inter.variable} ${spaceGrotesk.variable} h-full antialiased`}>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <BenchProviders>{children}</BenchProviders>
+      </body>
     </html>
   );
 }

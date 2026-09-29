@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AskIcon, ListIcon, PlusIcon } from "@/app/bench/icons";
 import { tabCurrent, type BenchTab } from "@/lib/bench/tabs";
 
-const TABS: Array<{ href: string; label: string; id: BenchTab }> = [
-  { href: "/", label: "Jobs", id: "jobs" },
-  { href: "/jobs/new", label: "New job", id: "new" },
-  { href: "/ask", label: "Ask", id: "ask" },
+const TABS: Array<{ href: string; label: string; id: BenchTab; icon: React.ReactNode }> = [
+  { href: "/", label: "Jobs", id: "jobs", icon: <ListIcon /> },
+  { href: "/jobs/new", label: "New job", id: "new", icon: <PlusIcon /> },
+  { href: "/ask", label: "Ask", id: "ask", icon: <AskIcon /> },
 ];
 
 export function TabBar() {
@@ -23,7 +24,8 @@ export function TabBar() {
             className="tab-link"
             aria-current={current ? "page" : undefined}
           >
-            {tab.label}
+            {tab.icon}
+            <span>{tab.label}</span>
           </Link>
         );
       })}

@@ -1,24 +1,52 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { NextMoveForm, NoteForm, PhotoForm, StatusPicker } from "@/app/bench/forms";
+import { CustomerCard } from "@/app/bench/customer-card";
+import { PhotosBlock } from "@/app/bench/forms";
+import { JobActionBar } from "@/app/bench/job-action-bar";
+import { NoteList } from "@/app/bench/note-list";
 import { BenchShell } from "@/app/bench/shell";
+import { WhereAt } from "@/app/bench/where-at";
 import { ownerContext } from "@/lib/bench/context";
 import { formatBenchTime } from "@/lib/bench/format";
-import { loadBenchJob } from "@/lib/bench/jobs";
+import { latestNote } from "@/lib/bench/latest-note";
+import { jobPath, listPath, orderedJobRefs, parseFromQuery, placeAriaLabel, placeInList, placeLabel } from "@/lib/bench/list-place";
+import { filterActiveJobs } from "@/lib/bench/filters";
+import { listBenchJobs, loadBenchJob } from "@/lib/bench/jobs";
 import { telHref } from "@/lib/bench/phone";
-import { NOTE_TAG_LABELS } from "@/lib/jobs/domain";
+import { compactViewport } from "@/lib/bench/compact-viewport";
 import { createPrivatePhotoUrl } from "@/lib/photos/signed-url";
 import { signJobPhotos, type SignedPhoto } from "@/lib/photos/views";
 
 export const dynamic = "force-dynamic";
 
-export default async function JobPage({ params }: { params: Promise<{ ref: string }> }) {
+export const viewport = compactViewport;
+
+export default async function JobPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ ref: string }>;
+  searchParams: Promise<{ from?: string | string[] }>;
+}) {
   const { ref } = await params;
+  const query = await searchParams;
+  const rawFrom = Array.isArray(query.from) ? query.from[0] : query.from;
+  const from = parseFromQuery(rawFrom);
   const { repo, supabase } = await ownerContext();
   const loaded = await loadBenchJob(repo, ref);
   if (!loaded) notFound();
   const { job, notes } = loaded;
   const call = job.phone ? telHref(job.phone) : null;
+  const latest = latestNote(notes);
+
+  let place = null;
+  try {
+    const listed = await listBenchJobs(repo, { search: from.q, includeFinished: from.finished });
+    const active = filterActiveJobs(listed.active, from.view);
+    place = placeInList(orderedJobRefs(active, listed.finished), job.ref);
+  } catch {
+    place = null;
+  }
 
   let photos: SignedPhoto[] = [];
   let photoError: string | null = null;
@@ -32,71 +60,62 @@ export default async function JobPage({ params }: { params: Promise<{ ref: strin
   }
 
   return (
-    <BenchShell title={job.ref} backHref="/" backLabel="Jobs" dock={<NoteForm jobRef={job.ref} />}>
-      <header className="summary-card">
-        <p className="summary-name">{job.customerName}</p>
-        <p className="summary-device">{job.deviceLabel}</p>
-        {job.phone && call ? (
-          <a href={call} className="call-link">
-            {job.phone}
-          </a>
-        ) : (
-          <p className="muted">No phone number</p>
-        )}
-        <p className="section-label">Reported fault</p>
-        <p className="note-text">{job.reportedFault}</p>
-      </header>
-
-      <Link href={`/jobs/${job.ref}/ask`} className="tech-btn-secondary">
-        Ask the record
-      </Link>
-
-      <StatusPicker jobRef={job.ref} status={job.status} />
-      <NextMoveForm jobRef={job.ref} nextMove={job.nextMove} />
-
-      <section className="job-list">
-        <h2 className="section-label">Notes</h2>
-        {notes.length === 0 ? <p className="empty">No notes yet.</p> : null}
-        <ul className="timeline">
-          {notes.map((note) => (
-            <li key={note.id} className="note-card">
-              <p className="note-meta">
-                <span className="status-pill">{note.tag ? NOTE_TAG_LABELS[note.tag] : "Note"}</span>
-                <time dateTime={note.createdAt}>{formatBenchTime(note.createdAt)}</time>
-              </p>
-              <p className="note-text">{note.text}</p>
-              {note.editedAt ? <p className="muted">Edited {formatBenchTime(note.editedAt)}</p> : null}
-            </li>
-          ))}
-        </ul>
+    <BenchShell
+      chrome="bar"
+      title={job.ref}
+      titlePlacement="bar"
+      backHref={listPath(from.raw)}
+      barMeta={place ? placeLabel(place) : null}
+      barMetaLabel={place ? placeAriaLabel(place) : undefined}
+      actionBar={
+        <JobActionBar
+          key={job.ref}
+          jobRef={job.ref}
+          nextMove={job.nextMove}
+          previousHref={place?.previousRef ? jobPath(place.previousRef, from.raw) : null}
+          nextHref={place?.nextRef ? jobPath(place.nextRef, from.raw) : null}
+        />
+      }
+    >
+      <WhereAt
+        key={job.ref}
+        jobRef={job.ref}
+        status={job.status}
+        nextMove={job.nextMove}
+        latestKind={latest.kind}
+        latestText={latest.kind === "empty" ? "No notes yet." : latest.note.text}
+        latestTime={latest.kind === "empty" ? null : formatBenchTime(latest.note.createdAt)}
+        latestNoteId={latest.kind === "empty" ? null : latest.note.id}
+      />
+      <CustomerCard
+        key={job.ref}
+        name={job.customerName}
+        device={job.deviceLabel}
+        phone={job.phone}
+        call={call}
+        fault={job.reportedFault}
+        startOpen={notes.length === 0}
+      />
+      <section className="job-list" aria-label="Notes">
+        <div className="section-head">
+          <h2 className="notes-heading">Notes</h2>
+          <Link href={`/jobs/${job.ref}/ask`} className="tech-btn-quiet" aria-label={`Ask the record about ${job.ref}`}>
+            Ask the record ›
+          </Link>
+        </div>
+        <NoteList
+          key={job.ref}
+          jobRef={job.ref}
+          notes={notes.map((note) => ({
+            id: note.id,
+            text: note.text,
+            tag: note.tag,
+            createdAt: note.createdAt,
+            editedAt: note.editedAt,
+          }))}
+        />
       </section>
-
-      <section className="job-list">
-        <h2 className="section-label">Photos</h2>
-        {photoError ? (
-          <p className="error-panel-message" role="alert">
-            {photoError}
-          </p>
-        ) : null}
-        {photos.length > 0 ? (
-          <ul className="photo-grid">
-            {photos.map((photo) => (
-              <li key={photo.id}>
-                <a href={photo.url}>
-                  {/* Signed URL for a private object. The image optimiser must not fetch it. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={photo.url} alt={photo.caption ?? "Photo on this job"} />
-                  <span>{formatBenchTime(photo.takenAt)}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        <PhotoForm jobRef={job.ref} />
-        <p className="muted">
-          Device photos are stored privately for the repair and deleted 12 months after the job is closed.
-        </p>
-      </section>
+      <PhotosBlock jobRef={job.ref} photos={photos} photoError={photoError} />
     </BenchShell>
   );
 }

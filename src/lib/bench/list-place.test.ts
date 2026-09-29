@@ -11,6 +11,7 @@ import {
   placeLabel,
 } from "@/lib/bench/list-place";
 import { DEFAULT_NOTE_TAG, NOTE_TAG_OPTIONS } from "@/lib/bench/note-tag-options";
+import { draftKey, draftLauncherLabel, parseDraft } from "@/lib/bench/draft";
 import { pendingPhrase } from "@/lib/bench/pending-phrase";
 
 describe("list place", () => {
@@ -95,6 +96,17 @@ describe("pending phrase", () => {
     expect(pendingPhrase(true, false, "Filing…", "File note")).toBe("Filing…");
     expect(pendingPhrase(true, true, "Filing…", "File note")).toBe("Filing… still working");
     expect(pendingPhrase(true, true, "Creating…", "Create job")).toBe("Creating… still working");
+  });
+});
+
+describe("note draft", () => {
+  it("keeps a per-job draft and shows it on the launcher", () => {
+    expect(draftKey("LL-J758")).toBe("ll-draft:LL-J758");
+    expect(parseDraft(null)).toEqual({ text: "", tag: "finding" });
+    expect(parseDraft("{\"text\":\"Loose jack\",\"tag\":\"parts\"}")).toEqual({ text: "Loose jack", tag: "parts" });
+    expect(parseDraft("nope")).toEqual({ text: "", tag: "finding" });
+    expect(draftLauncherLabel("  ")).toBe("Add a note…");
+    expect(draftLauncherLabel("Loose\njack")).toBe("Draft: Loose jack");
   });
 });
 

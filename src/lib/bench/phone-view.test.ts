@@ -145,8 +145,12 @@ describe("phone view", () => {
     expect(css).not.toContain("408 / 280");
     expect(css).toMatch(/\.search-field input::placeholder\s*\{[^}]*color:\s*var\(--muted\)/);
     expect(css).toMatch(/\.search-field input::placeholder\s*\{[^}]*opacity:\s*1/);
-    expect(css).toMatch(/\.chip\s*\{[^}]*border:\s*1px solid var\(--line\)/);
-    expect(css).toMatch(/\.chip\s*\{[^}]*background:\s*var\(--surface\)/);
+    expect(css).toMatch(/\.tech-btn-primary\s*\{[^}]*border:\s*1px solid var\(--sel-edge\)/);
+    expect(css).toMatch(/\.tech-btn-secondary\s*\{[^}]*border:\s*1px solid var\(--edge\)/);
+    expect(css).toMatch(/\.field input,[\s\S]*?border:\s*1px solid var\(--edge\)/);
+    expect(css).toMatch(/\.tab-link\[aria-current="page"\]\s*\{[^}]*background:\s*transparent/);
+    expect(css).toMatch(/\.tab-bar\s*\{[^}]*padding-bottom:\s*env\(safe-area-inset-bottom\)/);
+    expect(css).toMatch(/\.top-bar\s*\{[^}]*padding-top:\s*env\(safe-area-inset-top\)/);
     expect(css).toContain(BRAND.darkAccentTint.toLowerCase());
     expect(css).toMatch(/\.toast\s*\{[^}]*color:\s*#0b2029/);
 
