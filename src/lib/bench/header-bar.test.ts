@@ -76,11 +76,13 @@ describe("compact top bar (checks 34 to 40)", () => {
   it("renders no logo and no band on sign-in, Jobs, error, not-found and loading", async () => {
     const login = html(await LoginPage({ searchParams: Promise.resolve({}) }));
     const jobs = html(
-      createElement(
-        BenchShell,
-        { title: "Jobs", titlePlacement: "bar", barTitleSize: "md", showSignOut: true },
-        createElement("p", null, "list"),
-      ),
+      BenchShell({
+        title: "Jobs",
+        titlePlacement: "bar",
+        barTitleSize: "md",
+        showSignOut: true,
+        children: createElement("p", null, "list"),
+      }),
     );
     const error = html(createElement(ErrorScreen, { error: new Error("failed"), reset: () => {} }));
     const missing = html(createElement(NotFound));
