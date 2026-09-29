@@ -7,6 +7,7 @@ import { ownerContext } from "@/lib/bench/context";
 import { idleForm, type FormState } from "@/lib/bench/form-state";
 import { createBenchJob, saveBenchNextMove, setBenchStatus } from "@/lib/bench/jobs";
 import { addBenchNote } from "@/lib/bench/notes";
+import { reasonLine } from "@/lib/bench/reason";
 import { JOB_PHOTOS_BUCKET } from "@/lib/photos/signed-url";
 import { isJpeg, jobPhotoPath, PHOTO_MAX_BYTES } from "@/lib/photos/path";
 import { canonicalJobRef } from "@/lib/jobs/ref";
@@ -14,6 +15,14 @@ import { canonicalJobRef } from "@/lib/jobs/ref";
 function field(formData: FormData, name: string): string {
   const value = formData.get(name);
   return typeof value === "string" ? value : "";
+}
+
+function rejected(message: string, error?: unknown): FormState {
+  return { error: message, reason: error === undefined ? null : reasonLine(error) };
+}
+
+function fromBench(result: { message: string; reason?: string }): FormState {
+  return { error: result.message, reason: result.reason ?? null };
 }
 
 export async function createJobAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -25,7 +34,7 @@ export async function createJobAction(_prev: FormState, formData: FormData): Pro
     phone: field(formData, "phone"),
     now: new Date(),
   });
-  if (!result.ok) return { error: result.message };
+  if (!result.ok) return fromBench(result);
   redirect(`/jobs/${result.value.ref}`);
 }
 
@@ -40,7 +49,7 @@ export async function fileNoteAction(_prev: FormState, formData: FormData): Prom
     clientRequestId: `bench-${randomUUID()}`,
     now: new Date(),
   });
-  if (!result.ok) return { error: result.message };
+  if (!result.ok) return fromBench(result);
   revalidatePath("/");
   revalidatePath(`/jobs/${result.value.job.ref}`);
   return idleForm;
@@ -49,7 +58,7 @@ export async function fileNoteAction(_prev: FormState, formData: FormData): Prom
 export async function setStatusAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const { repo } = await ownerContext();
   const result = await setBenchStatus(repo, field(formData, "ref"), field(formData, "status"), new Date());
-  if (!result.ok) return { error: result.message };
+  if (!result.ok) return fromBench(result);
   revalidatePath("/");
   revalidatePath(`/jobs/${result.value.ref}`);
   return idleForm;
@@ -63,7 +72,7 @@ export async function saveNextMoveAction(_prev: FormState, formData: FormData): 
     field(formData, "next_move"),
     new Date(),
   );
-  if (!result.ok) return { error: result.message };
+  if (!result.ok) return fromBench(result);
   revalidatePath("/");
   revalidatePath(`/jobs/${result.value.ref}`);
   return idleForm;
@@ -72,15 +81,20 @@ export async function saveNextMoveAction(_prev: FormState, formData: FormData): 
 export async function addPhotoAction(formData: FormData): Promise<FormState> {
   const { repo, supabase } = await ownerContext();
   const ref = canonicalJobRef(field(formData, "ref"));
-  if (!ref) return { error: "That job ref is not valid." };
-  const job = await repo.getJobByRef(ref);
-  if (!job) return { error: "No job with that ref." };
+  if (!ref) return rejected("That job ref is not valid.");
+  let job;
+  try {
+    job = await repo.getJobByRef(ref);
+  } catch (error) {
+    return rejected("Could not store the photo.", error);
+  }
+  if (!job) return rejected("No job with that ref.");
 
   const file = formData.get("photo");
-  if (!(file instanceof File) || file.size === 0) return { error: "Choose a photo." };
-  if (file.size > PHOTO_MAX_BYTES) return { error: "That photo is too large." };
+  if (!(file instanceof File) || file.size === 0) return rejected("Choose a photo.");
+  if (file.size > PHOTO_MAX_BYTES) return rejected("That photo is too large.");
   const bytes = new Uint8Array(await file.arrayBuffer());
-  if (!isJpeg(bytes)) return { error: "That photo could not be stored. Add it again from the phone." };
+  if (!isJpeg(bytes)) return rejected("That photo could not be stored. Add it again from the phone.");
 
   const photoId = randomUUID();
   const path = jobPhotoPath(job.id, photoId);
@@ -88,7 +102,7 @@ export async function addPhotoAction(formData: FormData): Promise<FormState> {
     contentType: "image/jpeg",
     upsert: false,
   });
-  if (uploadError) return { error: "Could not store the photo." };
+  if (uploadError) return rejected("Could not store the photo.", uploadError);
 
   try {
     await repo.addPhoto({
@@ -98,9 +112,9 @@ export async function addPhotoAction(formData: FormData): Promise<FormState> {
       takenAt: new Date().toISOString(),
       caption: null,
     });
-  } catch {
+  } catch (error) {
     await supabase.storage.from(JOB_PHOTOS_BUCKET).remove([path]);
-    return { error: "Could not store the photo." };
+    return rejected("Could not store the photo.", error);
   }
 
   revalidatePath(`/jobs/${ref}`);

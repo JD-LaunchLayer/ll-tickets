@@ -1,10 +1,13 @@
 import { plainField } from "@/lib/bench/copy";
+import { reasonLine } from "@/lib/bench/reason";
 import type { Job, Note } from "@/lib/jobs/domain";
 import { fileNote } from "@/lib/jobs/record";
 import type { JobRepository } from "@/lib/jobs/repository";
 import { parseAddNote } from "@/lib/jobs/validate";
 
-export type BenchResult<T> = { ok: true; value: T } | { ok: false; message: string };
+export type BenchResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; message: string; reason?: string };
 
 /** First line, capped at the note summary length the record already uses. */
 export function summaryFromNoteText(text: string): string {
@@ -40,11 +43,11 @@ export async function addBenchNote(
   const parsed = parseAddNote(body);
   if (!parsed.ok) return { ok: false, message: plainField(parsed.message) };
 
-  const job = await repo.getJobByRef(parsed.value.ref);
-  if (!job) return { ok: false, message: "No job with that ref." };
-
-  const move = parsed.value.nextMove && parsed.value.nextMove !== job.nextMove ? parsed.value.nextMove : undefined;
   try {
+    const job = await repo.getJobByRef(parsed.value.ref);
+    if (!job) return { ok: false, message: "No job with that ref." };
+
+    const move = parsed.value.nextMove && parsed.value.nextMove !== job.nextMove ? parsed.value.nextMove : undefined;
     const filed = await fileNote(repo, {
       job,
       text: parsed.value.text,
@@ -57,7 +60,10 @@ export async function addBenchNote(
       now: input.now,
     });
     return { ok: true, value: filed };
-  } catch {
-    return { ok: false, message: "Could not file the note." };
+  } catch (error) {
+    const reason = reasonLine(error);
+    return reason
+      ? { ok: false, message: "Could not file the note.", reason }
+      : { ok: false, message: "Could not file the note." };
   }
 }

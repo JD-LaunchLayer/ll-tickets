@@ -1,3 +1,3 @@
-export type FormState = { error: string | null };
+export type FormState = { error: string | null; reason: string | null };
 
-export const idleForm: FormState = { error: null };
+export const idleForm: FormState = { error: null, reason: null };

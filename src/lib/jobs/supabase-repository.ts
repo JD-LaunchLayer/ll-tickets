@@ -22,6 +22,9 @@ import type {
   NewPhoto,
   NotePatch,
 } from "@/lib/jobs/repository";
+import { reportRepositoryFailure, RepositoryError } from "@/lib/jobs/repository-error";
+
+export { RepositoryError };
 
 const FIND_LIMIT = 50;
 
@@ -31,13 +34,6 @@ type NoteRow = Database["public"]["Tables"]["notes"]["Row"];
 type RevisionRow = Database["public"]["Tables"]["note_revisions"]["Row"];
 type IdempotencyRow = Database["public"]["Tables"]["action_idempotency"]["Row"];
 type PhotoRow = Database["public"]["Tables"]["photos"]["Row"];
-
-export class RepositoryError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "RepositoryError";
-  }
-}
 
 function asMoney(value: unknown): number | null {
   if (value === null || value === undefined) return null;
@@ -168,7 +164,7 @@ export class SupabaseJobRepository implements JobRepository {
         .select("*")
         .single();
       if (!error && data) return rowToJob(data);
-      if (error?.code !== "23505") throw new RepositoryError("Could not create the job.");
+      if (error?.code !== "23505") reportRepositoryFailure("createJob", "Could not create the job.", error);
     }
     throw new RepositoryError("Could not allocate a job ref.");
   }
@@ -203,7 +199,7 @@ export class SupabaseJobRepository implements JobRepository {
       .eq("id", id)
       .select("*")
       .single();
-    if (error || !data) throw new RepositoryError("Could not update the job.");
+    if (error || !data) reportRepositoryFailure("updateJob", "Could not update the job.", error);
     return rowToJob(data);
   }
 
@@ -213,7 +209,7 @@ export class SupabaseJobRepository implements JobRepository {
       .select("*")
       .eq("ref", ref.toUpperCase())
       .maybeSingle();
-    if (error) throw new RepositoryError("Could not read the job.");
+    if (error) reportRepositoryFailure("getJobByRef", "Could not read the job.", error);
     return data ? rowToJob(data) : null;
   }
 
@@ -231,7 +227,7 @@ export class SupabaseJobRepository implements JobRepository {
       request = request.eq("status", status);
     }
     const { data, error } = await request.order("updated_at", { ascending: false }).limit(FIND_LIMIT);
-    if (error) throw new RepositoryError("Could not search jobs.");
+    if (error) reportRepositoryFailure("findJobs", "Could not search jobs.", error);
     const jobs = (data ?? []).map(rowToJob).filter((job) =>
       status === "active" ? isActiveStatus(job.status) : job.status === status,
     );
@@ -244,7 +240,7 @@ export class SupabaseJobRepository implements JobRepository {
         jobs.map((job) => job.id),
       )
       .order("created_at", { ascending: false });
-    if (notesError) throw new RepositoryError("Could not read note summaries.");
+    if (notesError) reportRepositoryFailure("findJobs", "Could not read note summaries.", notesError);
     const summaries = new Map<string, string>();
     for (const note of notes ?? []) {
       if (!summaries.has(note.job_id)) summaries.set(note.job_id, note.summary);
@@ -267,13 +263,13 @@ export class SupabaseJobRepository implements JobRepository {
       })
       .select("*")
       .single();
-    if (error || !data) throw new RepositoryError("Could not file the note.");
+    if (error || !data) reportRepositoryFailure("addNote", "Could not file the note.", error);
     return rowToNote(data);
   }
 
   async getNote(id: string): Promise<Note | null> {
     const { data, error } = await this.client.from("notes").select("*").eq("id", id).maybeSingle();
-    if (error) throw new RepositoryError("Could not read the note.");
+    if (error) reportRepositoryFailure("getNote", "Could not read the note.", error);
     return data ? rowToNote(data) : null;
   }
 
@@ -291,14 +287,14 @@ export class SupabaseJobRepository implements JobRepository {
       .eq("id", id)
       .select("*")
       .single();
-    if (error || !data) throw new RepositoryError("Could not edit the note.");
+    if (error || !data) reportRepositoryFailure("editNote", "Could not edit the note.", error);
     const { data: revisions, error: revisionError } = await this.client
       .from("note_revisions")
       .select("*")
       .eq("note_id", id)
       .order("superseded_at", { ascending: false })
       .limit(1);
-    if (revisionError) throw new RepositoryError("Could not read the note revision.");
+    if (revisionError) reportRepositoryFailure("editNote", "Could not read the note revision.", revisionError);
     const revisionRow = revisions?.[0];
     if (!revisionRow) throw new RepositoryError("The previous note text was not kept.");
     return { note: rowToNote(data), revision: rowToRevision(revisionRow) };
@@ -310,7 +306,7 @@ export class SupabaseJobRepository implements JobRepository {
       .select("*")
       .eq("job_id", jobId)
       .order("created_at", { ascending: false });
-    if (error) throw new RepositoryError("Could not read notes.");
+    if (error) reportRepositoryFailure("listNotes", "Could not read notes.", error);
     return (data ?? []).map(rowToNote);
   }
 
@@ -320,7 +316,7 @@ export class SupabaseJobRepository implements JobRepository {
       .select("*")
       .eq("job_id", jobId)
       .order("taken_at", { ascending: true });
-    if (error) throw new RepositoryError("Could not read photos.");
+    if (error) reportRepositoryFailure("listPhotos", "Could not read photos.", error);
     return (data ?? []).map(rowToPhoto);
   }
 
@@ -337,7 +333,7 @@ export class SupabaseJobRepository implements JobRepository {
       })
       .select("*")
       .single();
-    if (error || !data) throw new RepositoryError("Could not store the photo.");
+    if (error || !data) reportRepositoryFailure("addPhoto", "Could not store the photo.", error);
     return rowToPhoto(data);
   }
 
@@ -347,7 +343,7 @@ export class SupabaseJobRepository implements JobRepository {
       .select("caption, taken_at")
       .eq("job_id", jobId)
       .order("taken_at", { ascending: true });
-    if (error) throw new RepositoryError("Could not read photo captions.");
+    if (error) reportRepositoryFailure("listPhotoCaptions", "Could not read photo captions.", error);
     const captions = (data ?? []).map((photo) => photo.caption);
     return { count: captions.length, captions };
   }
@@ -358,7 +354,7 @@ export class SupabaseJobRepository implements JobRepository {
       .select("*")
       .eq("note_id", noteId)
       .order("superseded_at", { ascending: true });
-    if (error) throw new RepositoryError("Could not read note revisions.");
+    if (error) reportRepositoryFailure("listRevisions", "Could not read note revisions.", error);
     return (data ?? []).map(rowToRevision);
   }
 
@@ -377,7 +373,7 @@ export class SupabaseJobRepository implements JobRepository {
       created_at: input.createdAt,
     });
     if (!error) return { result: "claimed" };
-    if (error.code !== "23505") throw new RepositoryError("Could not store the request id.");
+    if (error.code !== "23505") reportRepositoryFailure("claimIdempotency", "Could not store the request id.", error);
     const existing = await this.readIdempotency(input.clientRequestId);
     if (!existing) return { result: "in_progress" };
     return classify(existing, input.operation, input.requestHash);
@@ -392,7 +388,7 @@ export class SupabaseJobRepository implements JobRepository {
       .from("action_idempotency")
       .update({ http_status: httpStatus, response: response as Json })
       .eq("client_request_id", clientRequestId);
-    if (error) throw new RepositoryError("Could not store the action result.");
+    if (error) reportRepositoryFailure("completeIdempotency", "Could not store the action result.", error);
   }
 
   async releaseIdempotency(clientRequestId: string): Promise<void> {
@@ -410,12 +406,12 @@ export class SupabaseJobRepository implements JobRepository {
       job_id: entry.jobId,
       created_at: entry.createdAt,
     });
-    if (error) throw new RepositoryError("Could not write the audit trail.");
+    if (error) reportRepositoryFailure("writeAudit", "Could not write the audit trail.", error);
   }
 
   private async requireJob(id: string): Promise<Job> {
     const { data, error } = await this.client.from("jobs").select("*").eq("id", id).maybeSingle();
-    if (error || !data) throw new RepositoryError("Could not read the job.");
+    if (error || !data) reportRepositoryFailure("requireJob", "Could not read the job.", error);
     return rowToJob(data);
   }
 
@@ -425,7 +421,7 @@ export class SupabaseJobRepository implements JobRepository {
       .select("*")
       .eq("client_request_id", clientRequestId)
       .maybeSingle();
-    if (error) throw new RepositoryError("Could not read the request id.");
+    if (error) reportRepositoryFailure("readIdempotency", "Could not read the request id.", error);
     return data ? rowToIdempotency(data) : null;
   }
 }

@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { plainField } from "@/lib/bench/copy";
 import { parsePhone } from "@/lib/bench/phone";
+import { reasonLine } from "@/lib/bench/reason";
 import type { BenchResult } from "@/lib/bench/notes";
 import { isJobStatus, JOB_STATUSES, type Job, type JobStatus } from "@/lib/jobs/domain";
 import { applyStatusChange } from "@/lib/jobs/record";
@@ -111,9 +112,14 @@ export async function createBenchJob(
       phone: phone.phone,
     });
     return { ok: true, value: job };
-  } catch {
-    return { ok: false, message: "Could not create the job." };
+  } catch (error) {
+    return failed("Could not create the job.", error);
   }
+}
+
+function failed(message: string, error: unknown): { ok: false; message: string; reason?: string } {
+  const reason = reasonLine(error);
+  return reason ? { ok: false, message, reason } : { ok: false, message };
 }
 
 export async function setBenchStatus(
@@ -127,9 +133,9 @@ export async function setBenchStatus(
   if (!isJobStatus(status)) {
     return { ok: false, message: `Status must be one of: ${JOB_STATUSES.join(", ")}.` };
   }
-  const job = await repo.getJobByRef(ref);
-  if (!job) return { ok: false, message: "No job with that ref." };
   try {
+    const job = await repo.getJobByRef(ref);
+    if (!job) return { ok: false, message: "No job with that ref." };
     const updated = await applyStatusChange(repo, {
       job,
       status,
@@ -137,8 +143,8 @@ export async function setBenchStatus(
       now,
     });
     return { ok: true, value: updated };
-  } catch {
-    return { ok: false, message: "Could not update the status." };
+  } catch (error) {
+    return failed("Could not update the status.", error);
   }
 }
 
@@ -152,16 +158,16 @@ export async function saveBenchNextMove(
   if (!ref) return { ok: false, message: "That job ref is not valid." };
   const parsed = parseNextMove(nextMove);
   if (!parsed.ok) return { ok: false, message: plainField(parsed.message) };
-  const job = await repo.getJobByRef(ref);
-  if (!job) return { ok: false, message: "No job with that ref." };
-  if (job.nextMove === parsed.value) return { ok: true, value: job };
   try {
+    const job = await repo.getJobByRef(ref);
+    if (!job) return { ok: false, message: "No job with that ref." };
+    if (job.nextMove === parsed.value) return { ok: true, value: job };
     const updated = await repo.updateJob(job.id, {
       nextMove: parsed.value,
       updatedAt: now.toISOString(),
     });
     return { ok: true, value: updated };
-  } catch {
-    return { ok: false, message: "Could not save the next move." };
+  } catch (error) {
+    return failed("Could not save the next move.", error);
   }
 }
