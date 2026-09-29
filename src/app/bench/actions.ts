@@ -25,6 +25,10 @@ function fromBench(result: { message: string; reason?: string }): FormState {
   return { error: result.message, reason: result.reason ?? null };
 }
 
+function saved(message: string): FormState {
+  return { error: null, reason: null, notice: message, noticeId: randomUUID() };
+}
+
 export async function createJobAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const { repo } = await ownerContext();
   const result = await createBenchJob(repo, {
@@ -52,7 +56,7 @@ export async function fileNoteAction(_prev: FormState, formData: FormData): Prom
   if (!result.ok) return fromBench(result);
   revalidatePath("/");
   revalidatePath(`/jobs/${result.value.job.ref}`);
-  return idleForm;
+  return saved("Note filed.");
 }
 
 export async function setStatusAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -61,7 +65,7 @@ export async function setStatusAction(_prev: FormState, formData: FormData): Pro
   if (!result.ok) return fromBench(result);
   revalidatePath("/");
   revalidatePath(`/jobs/${result.value.ref}`);
-  return idleForm;
+  return saved("Status saved.");
 }
 
 export async function saveNextMoveAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -75,7 +79,7 @@ export async function saveNextMoveAction(_prev: FormState, formData: FormData): 
   if (!result.ok) return fromBench(result);
   revalidatePath("/");
   revalidatePath(`/jobs/${result.value.ref}`);
-  return idleForm;
+  return saved("Next move saved.");
 }
 
 export async function addPhotoAction(formData: FormData): Promise<FormState> {

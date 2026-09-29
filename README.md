@@ -1,6 +1,6 @@
 # ll-tickets
 
-LaunchLayer workshop jobs for Jordan Duggins’ Wickford repair bench. He talks to a custom GPT, which files the job, or he uses the phone. Ask the record on the phone is a diagnosing buddy: it does not file notes. The phone view is for the bench: find the job, file a note, set the next move, add a photo, and reason through the fault. The custom GPT stays supported.
+LaunchLayer workshop jobs for Jordan Duggins’ Wickford repair bench. He talks to a custom GPT, which files the job, or he uses the phone. Ask the record on the phone is a diagnosing buddy: it does not file notes. The phone view is the branded bench app: jobs, a new job, and Ask the record, with the logo in a dark header. He finds the job, files a note, sets the next move, adds a photo, and reasons through the fault. The custom GPT stays supported.
 
 British English.
 

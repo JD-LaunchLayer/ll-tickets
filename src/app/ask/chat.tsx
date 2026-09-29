@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { saveAssistantNoteAction } from "@/app/ask/actions";
+import { ErrorPanel } from "@/app/bench/error-panel";
 import { NOT_CONFIGURED_MESSAGE, suggestionDraft, suggestionsFor } from "@/lib/assistant/copy";
 import { HISTORY_MESSAGE_LIMIT } from "@/lib/assistant/limit";
+import { splitReply } from "@/lib/assistant/reply";
 import { defaultSaveTag } from "@/lib/assistant/save-note";
 import { idleForm, type FormState } from "@/lib/bench/form-state";
 import { NOTE_TAGS, NOTE_TAG_LABELS, type NoteTag } from "@/lib/jobs/domain";
@@ -48,6 +50,36 @@ function useThread(key: string): StoredMessage[] {
       return messages;
     },
     () => EMPTY_THREAD,
+  );
+}
+
+function ReplyBody({ text }: { text: string }) {
+  const blocks = splitReply(text);
+  if (blocks.length === 0) return null;
+  return (
+    <div className="reply">
+      {blocks.map((block, index) => {
+        if (block.type === "ul") {
+          return (
+            <ul key={index}>
+              {block.items.map((item, itemIndex) => (
+                <li key={itemIndex}>{item}</li>
+              ))}
+            </ul>
+          );
+        }
+        if (block.type === "ol") {
+          return (
+            <ol key={index}>
+              {block.items.map((item, itemIndex) => (
+                <li key={itemIndex}>{item}</li>
+              ))}
+            </ol>
+          );
+        }
+        return <p key={index}>{block.text}</p>;
+      })}
+    </div>
   );
 }
 
@@ -186,63 +218,58 @@ export function AskChat({
   }
 
   if (!configured) {
-    return <p className="text-lg">{NOT_CONFIGURED_MESSAGE}</p>;
+    return <p className="empty">{NOT_CONFIGURED_MESSAGE}</p>;
   }
 
   const suggestions = messages.length === 0 && !pending ? suggestionsFor(scopeRef) : [];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center justify-between gap-2">
-        {detail ? <p className="text-sm text-slate-700">{detail}</p> : <span />}
+    <div className="chat">
+      <div className="job-card-top">
+        {detail ? <p className="muted">{detail}</p> : <span />}
         <button className="tech-btn-quiet" type="button" onClick={clear}>
           Clear
         </button>
       </div>
-      <div className="mt-2 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto" aria-live="polite">
+      <div className="chat-log" aria-live="polite">
         {suggestions.length > 0 ? (
-          <div className="flex flex-col gap-2">
-            <p className="text-lg text-slate-600">
-              {scopeRef ? "What do you want to check?" : "Ask about the jobs on the bench."}
-            </p>
-            <div className="flex flex-wrap gap-2">
+          <div className="job-list">
+            <p className="muted">{scopeRef ? "What do you want to check?" : "Ask about the jobs on the bench."}</p>
+            <div className="chip-row">
               {suggestions.map((prompt) => (
-                <button key={prompt} className="tech-btn-secondary w-auto" type="button" onClick={() => pickSuggestion(prompt)}>
+                <button key={prompt} className="chip" type="button" onClick={() => pickSuggestion(prompt)}>
                   {prompt}
                 </button>
               ))}
             </div>
           </div>
         ) : null}
-        <ul className="flex flex-col gap-2">
+        <ul className="chat-list">
           {messages.map((message, index) => (
-            <li
-              key={`${message.role}-${index}`}
-              className={
-                message.role === "user"
-                  ? "ml-8 rounded-lg bg-[#3b82f6] px-3 py-2 text-lg text-white"
-                  : "mr-8 rounded-lg bg-white px-3 py-2 text-lg text-slate-900"
-              }
-            >
-              <p className="whitespace-pre-wrap">{message.text}</p>
-              {message.reason ? <p className="mt-1 text-sm text-red-800">{message.reason}</p> : null}
+            <li key={`${message.role}-${index}`} className={message.role === "user" ? "bubble bubble-user" : "bubble bubble-assistant"}>
+              {message.role === "assistant" ? <ReplyBody text={message.text} /> : <p>{message.text}</p>}
+              {message.reason ? <p className="bubble-reason">{message.reason}</p> : null}
               {message.role === "assistant" && scopeRef ? (
-                <button className="tech-btn-quiet mt-1 px-0" type="button" onClick={() => openSave(message.text)}>
+                <button className="tech-btn-quiet" type="button" onClick={() => openSave(message.text)}>
                   Save to notes
                 </button>
               ) : null}
             </li>
           ))}
         </ul>
-        {pending ? <p className="text-lg text-slate-600">Thinking…</p> : null}
+        {pending ? (
+          <p className="thinking" role="status">
+            Thinking…
+          </p>
+        ) : null}
         <div ref={endRef} />
       </div>
       {toast ? (
-        <p className="mt-2 text-sm font-semibold text-slate-800" role="status">
+        <p className="toast" role="status">
           {toast}
         </p>
       ) : null}
-      <form onSubmit={send} className="mt-3 flex flex-col gap-2">
+      <form onSubmit={send} className="composer">
         <label className="field-label" htmlFor="ask-text">
           Message
         </label>
@@ -262,18 +289,13 @@ export function AskChat({
         </button>
       </form>
       {sheet && scopeRef ? (
-        <div className="fixed inset-0 z-20 flex items-end justify-center bg-slate-900/40 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <div
-            className="w-full max-w-lg rounded-t-xl bg-white p-4 shadow-lg"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="save-note-title"
-          >
-            <h2 id="save-note-title" className="text-lg font-semibold">
+        <div className="sheet-backdrop">
+          <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="save-note-title">
+            <h2 id="save-note-title" className="page-title">
               Save to notes
             </h2>
-            <p className="mt-1 text-sm text-slate-600">Nothing is filed until you tap Save.</p>
-            <label className="field mt-3">
+            <p className="muted">Nothing is filed until you tap Save.</p>
+            <label className="field">
               <span className="field-label">Note</span>
               <textarea
                 value={sheet.text}
@@ -282,14 +304,14 @@ export function AskChat({
                 maxLength={4000}
               />
             </label>
-            <fieldset className="mt-3">
+            <fieldset>
               <legend className="field-label">Tag</legend>
-              <div className="mt-2 flex flex-wrap gap-2">
+              <div className="chip-row">
                 {NOTE_TAGS.map((tag) => (
                   <button
                     key={tag}
                     type="button"
-                    className={tag === sheet.tag ? "tech-btn-primary w-auto" : "tech-btn-secondary w-auto"}
+                    className="chip"
                     aria-pressed={tag === sheet.tag}
                     onClick={() => setSheet({ ...sheet, tag })}
                   >
@@ -298,13 +320,8 @@ export function AskChat({
                 ))}
               </div>
             </fieldset>
-            {saveError.error ? (
-              <div className="mt-3" role="alert">
-                <p className="text-sm text-red-700">{saveError.error}</p>
-                {saveError.reason ? <p className="mt-1 text-sm text-red-700">{saveError.reason}</p> : null}
-              </div>
-            ) : null}
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            {saveError.error ? <ErrorPanel message={saveError.error} reason={saveError.reason} /> : null}
+            <div className="sheet-actions">
               <button
                 className="tech-btn-secondary"
                 type="button"
