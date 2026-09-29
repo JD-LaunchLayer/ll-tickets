@@ -1,6 +1,7 @@
 "use server";
 
 import { ownerEmail } from "@/lib/auth/owner";
+import { signInLinkErrorMessage } from "@/lib/auth/sign-in-link-error";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { siteOrigin } from "@/lib/site";
@@ -43,11 +44,8 @@ export async function sendSignInLink(
     },
   });
   if (error) {
-    return {
-      error:
-        "The sign-in link could not be sent. The owner user must already exist in Supabase Auth, and the site URL must be on the redirect allow list.",
-      sent: false,
-    };
+    console.error("signInWithOtp failed", { code: error.code, status: error.status });
+    return { error: signInLinkErrorMessage(error), sent: false };
   }
 
   return { error: null, sent: true };
