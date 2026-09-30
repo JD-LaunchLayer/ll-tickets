@@ -278,7 +278,7 @@ describe("assistant turn", () => {
     });
     expect(result.ok).toBe(true);
     expect(repo.notes).toHaveLength(1);
-    expect(repo.jobs[0]?.phone).toBe(PHONE);
+    expect(repo.jobs[0]?.phone).toBe(PHONE_DIGITS);
     expect(repo.jobs[0]?.status).toBe("new");
     const system = model.doGenerateCalls[0]?.prompt.find((message) => message.role === "system");
     const content = system && typeof system.content === "string" ? system.content : "";
@@ -665,7 +665,7 @@ describe("save a reply to notes", () => {
     expect(repo.notes[0]?.tag).toBe("finding");
     expect(repo.notes[0]?.text).toBe("Likely the DC jack. 20V in, 0V at the jack.");
     expect(repo.notes[0]?.jobId).toBe(job.id);
-    expect(repo.jobs[0]?.phone).toBe(PHONE);
+    expect(repo.jobs[0]?.phone).toBe(PHONE_DIGITS);
     expect(repo.jobs[0]?.status).toBe("diagnosing");
     expect(saved.ok && saved.value.statusMove).toEqual({ applied: true, from: "new", to: "diagnosing" });
     spy.mockRestore();

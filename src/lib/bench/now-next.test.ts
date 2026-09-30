@@ -6,6 +6,8 @@ import {
   displayNextMove,
   emptyFilterMessage,
   filterNotes,
+  filterChipAriaLabel,
+  filterChipShowsCount,
   noteCounts,
   noteFilterKey,
   noteFilterOf,
@@ -232,6 +234,13 @@ describe("note filters", () => {
     expect(noteFilterOf({ tag: "other" })).toBeNull();
     expect(noteFilterOf({ tag: null })).toBeNull();
     expect(noteCounts(notes)).toEqual({ all: 8, finding: 2, parts: 1, contact: 2 });
+    expect(filterChipShowsCount(0)).toBe(false);
+    expect(filterChipShowsCount(1)).toBe(true);
+    expect(filterChipAriaLabel("All", 0)).toBe("All");
+    expect(filterChipAriaLabel("All", 8)).toBe("All, 8 notes");
+    expect(filterChipAriaLabel("Findings", 2)).toBe("Findings, 2 notes");
+    expect(filterChipAriaLabel("Parts", 1)).toBe("Parts, 1 note");
+    expect(filterChipAriaLabel("Contact", 0)).toBe("Contact");
     expect(filterNotes(notes, "all").map((note) => note.id)).toEqual(notes.map((note) => note.id));
     expect(filterNotes(notes, "finding").map((note) => note.id)).toEqual(["f1", "f2"]);
     expect(filterNotes(notes, "parts").map((note) => note.id)).toEqual(["p1"]);

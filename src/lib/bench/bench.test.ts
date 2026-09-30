@@ -181,14 +181,14 @@ describe("bench create", () => {
     });
     expect(created.ok).toBe(true);
     if (!created.ok) return;
-    expect(created.value.phone).toBe("07700 900 999");
+    expect(created.value.phone).toBe("07700900999");
     expect(created.value.nextMove).toBe("Diagnose the reported fault");
     expect(toPublicJob(created.value)).not.toHaveProperty("phone");
     expect(JSON.stringify(toPublicJob(created.value))).not.toContain("07700");
     expect(telHref(created.value.phone ?? "")).toBe("tel:07700900999");
 
     const loaded = await loadBenchJob(repo, created.value.ref.toLowerCase());
-    expect(loaded?.job.phone).toBe("07700 900 999");
+    expect(loaded?.job.phone).toBe("07700900999");
 
     const blank = await createBenchJob(repo, {
       customerName: "Grace Hopper",
@@ -271,7 +271,7 @@ describe("phone links", () => {
     expect(parsePhone("")).toEqual({ ok: true, phone: null });
     const parsed = parsePhone("+44 7700 900999");
     expect(parsed.ok).toBe(true);
-    if (parsed.ok) expect(parsed.phone).toBe("+44 7700 900999");
+    if (parsed.ok) expect(parsed.phone).toBe("+447700900999");
     expect(telHref("+44 7700 900999")).toBe("tel:+447700900999");
     expect(parsePhone("nope").ok).toBe(false);
     expect(telHref("javascript:alert(1)")).toBeNull();

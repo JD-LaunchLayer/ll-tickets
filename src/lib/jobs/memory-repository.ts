@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { phoneForStorage } from "@/lib/bench/phone";
 import {
   closedAtAfterStatusChange,
   type Job,
@@ -71,7 +72,7 @@ export class MemoryJobRepository implements JobRepository {
       priceAgreedAt: input.priceAgreedAt,
       backupPosition: input.backupPosition,
       accessGiven: input.accessGiven,
-      phone: input.phone?.trim() || null,
+      phone: phoneForStorage(input.phone),
       collectionAt: null,
       calendarEventId: null,
       followUpAt: input.followUpAt,
