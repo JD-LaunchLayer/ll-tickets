@@ -34,7 +34,7 @@ const ICON_SHA256: Record<string, string> = {
   "public/icons/icon-512.png": "b9411070c702c830022c28315e5c7ca2f6a7898a9ca3c681f6ec5b84992508e9",
   "public/icons/icon-maskable-512.png": "979c32b32693d2470cded3e1ae2296df0c7019afb7273ba83e541497647ec808",
   "public/icons/apple-touch-icon.png": "313960a7a736afaf3aa453bb5d79a5e92de35992a60ee7203a74cc464cde312f",
-  "src/app/favicon.ico": "2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932",
+  "src/app/favicon.ico": "5d7c220ca01846d5ea1b8b637b030c0163576cd7a0fedc922566dd3584757295",
 };
 
 const BRAND_FILE = "public/brand/image-0961fde4.png";

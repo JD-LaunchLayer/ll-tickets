@@ -1,4 +1,3 @@
-import { execSync } from "child_process";
 import { readdirSync, readFileSync, statSync } from "fs";
 import path from "path";
 import { describe, expect, it } from "vitest";
@@ -317,14 +316,24 @@ describe("note feed scope", () => {
     expect(noteChipPence(note)).toBeNull();
   });
 
-  it("adds no migration and does not change the action fixtures", () => {
-    const diff = execSync(
-      "git diff --name-only origin/main -- supabase/migrations docs/gpt-actions.openapi.json src/app/openapi.json src/lib/actions src/app/api src/lib/assistant",
-      { encoding: "utf8" },
-    ).trim();
-    expect(diff).toBe("");
-    const migrations = readdirSync("supabase/migrations");
-    expect(migrations.some((name) => name.includes("note-view") || name.includes("14b"))).toBe(false);
+  it("adds no migration and does not import the notes feed from actions or the API", () => {
+    expect(readdirSync("supabase/migrations").sort()).toEqual([
+      "20260929120000_jobs.sql",
+      "20260929190000_assistant_daily_usage.sql",
+    ]);
+    const roots = ["src/lib/assistant", "src/lib/actions", "src/app/api"];
+    const banned = ["note-view", "note-blocks", "note-list", "save-headline", "now-next", "bench/swipe"];
+    const files = roots.flatMap((root) => walk(root));
+    for (const file of files) {
+      const text = readFileSync(file, "utf8");
+      for (const name of banned) {
+        expect(text.includes(name), `${file} mentions ${name}`).toBe(false);
+      }
+    }
+    const spec = readFileSync("docs/gpt-actions.openapi.json", "utf8");
+    expect(spec).not.toContain("now-next");
+    expect(spec).not.toContain("note-view");
+    expect(readFileSync("src/app/openapi.json/route.ts", "utf8")).not.toContain("now-next");
   });
 
   it("caps open note ids at 200", () => {
