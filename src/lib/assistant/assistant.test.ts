@@ -285,6 +285,8 @@ describe("assistant turn", () => {
     expect(content).toContain(job.ref);
     expect(content).toContain("MacBook Pro 2019");
     expect(content).toContain("No power");
+    expect(content).toContain("Status: new (New)");
+    expect(content).toContain("Parts: none on the notes.");
     expect(content).toContain("Check the charger");
     expect(content).toContain("finding (Finding)");
     expect(content).toContain("Fan is noisy. Ring [omitted] if it comes back.");
@@ -345,6 +347,49 @@ describe("assistant turn", () => {
     expect(found.result.ok).toBe(true);
     assertNoPhone(found.model);
     expect(JSON.stringify(toolResultValues(found.model))).toContain(job.ref);
+  });
+
+  it("find_jobs matches the same fault on another model and does not ask the Action API to", async () => {
+    const repo = new MemoryJobRepository();
+    const omen = await repo.createJob({
+      customerName: "Jordan Duggins",
+      deviceLabel: "HP Omen 25l",
+      reportedFault: "No power",
+      nextMove: "Check the charger",
+      priceGbp: null,
+      priceBasis: null,
+      priceAgreedAt: null,
+      backupPosition: null,
+      accessGiven: null,
+      followUpAt: null,
+      createdAt: NOW,
+      phone: null,
+    });
+    const dell = await repo.createJob({
+      customerName: "Test Customer",
+      deviceLabel: "Dell Latitude",
+      reportedFault: "No power",
+      nextMove: "Check the charger",
+      priceGbp: null,
+      priceBasis: null,
+      priceAgreedAt: null,
+      backupPosition: null,
+      accessGiven: null,
+      followUpAt: null,
+      createdAt: NOW,
+      phone: null,
+    });
+    const { model } = await talk({
+      repo,
+      doGenerate: scripted([
+        toolStep("find_jobs", { device: "power", status: "active" }),
+        textStep("Nothing else like it."),
+      ]),
+    });
+    const blob = JSON.stringify(toolResultValues(model));
+    expect(blob).toContain(omen.ref);
+    expect(blob).toContain(dell.ref);
+    expect(readFileSync("src/lib/actions/handle.ts", "utf8")).not.toContain("findJobsForAsk");
   });
 
   it("tells the model only that a read failed, and names the cause for the phone", async () => {
@@ -423,10 +468,13 @@ describe("assistant turn", () => {
 });
 
 describe("assistant prompt and the Action API", () => {
-  it("uses the diagnostic rules and leaves the GPT instructions unchanged", () => {
+  it("uses the diagnostic rules and keeps the GPT fence in sync", () => {
     const markdown = readFileSync("docs/gpt-instructions.md", "utf8");
     const fenced = markdown.match(/```\n([\s\S]*?)\n```/);
     expect(fenced?.[1]).toBe(WORKSHOP_RECORD_INSTRUCTIONS);
+    expect(WORKSHOP_RECORD_INSTRUCTIONS).toContain(
+      "When he asks if he has seen this before, call find_jobs, answer from the record, and say plainly when nothing is on file.",
+    );
     const prompt = buildSystemPrompt({
       ref: "LL-4K7M",
       customerName: "Ada Lovelace",
@@ -434,6 +482,9 @@ describe("assistant prompt and the Action API", () => {
       reportedFault: "No power",
       status: "diagnosing",
       nextMove: "Check the charger",
+      priceGbp: null,
+      priceBasis: null,
+      priceAgreedAt: null,
       notes: [{ tag: "finding", text: "No light on the charger brick." }],
     });
     expect(prompt).toContain("diagnosing buddy");
@@ -463,11 +514,46 @@ describe("assistant prompt and the Action API", () => {
     expect(prompt).toContain("LL-4K7M");
     expect(prompt).toContain("No power");
     expect(prompt).toContain("finding (Finding)");
+    expect(prompt).toContain("Status: diagnosing (Diagnosing)");
+    expect(prompt).toContain("Parts: none on the notes.");
+    expect(prompt).toContain("Job price: none.");
+    expect(prompt).toContain("Seen anything like this before?");
+    expect(prompt).toContain("where do I start?");
+    expect(prompt).toContain("I'm lost");
+    expect(prompt).toContain("one or two short sentences");
+    expect(prompt).toContain("first one or two concrete checks");
+    expect(prompt).toContain("Never ask permission to search");
+    expect(prompt).toContain("nothing matches");
+    expect(prompt).toContain("one short question");
+    expect(prompt).toContain("hardware or BIOS");
+    expect(prompt).toContain("waiting on the logic board");
+    expect(prompt).toContain("same brand");
+    expect(prompt).toContain("same fault on other models");
+    expect(prompt).toContain("One question in a reply at most");
     expect(prompt).not.toContain(PHONE);
     expect(prompt).not.toContain("Do not diagnose");
     expect(prompt).not.toContain("He talks; you file");
     expect(prompt).not.toContain(WORKSHOP_RECORD_INSTRUCTIONS);
     expect(DEFAULT_ASSISTANT_MODEL).toBe("gpt-4.1");
+  });
+
+  it("gives the parts total and the part name when the job is waiting on a board", () => {
+    const prompt = buildSystemPrompt({
+      ref: "LL-HPS3",
+      customerName: "Emily Duggins",
+      deviceLabel: "Dell G15",
+      reportedFault: "No power",
+      status: "waiting_on_parts",
+      nextMove: "Diagnose the reported fault",
+      priceGbp: 239,
+      priceBasis: "estimate",
+      priceAgreedAt: null,
+      notes: [{ tag: "parts", text: "Placeholder logic board - £239", amountGbp: null }],
+    });
+    expect(prompt).toContain("Status: waiting_on_parts (Waiting on parts)");
+    expect(prompt).toContain("Parts total £239 (1 part): Placeholder logic board");
+    expect(prompt).toContain("Job price: £239, estimate, not agreed.");
+    expect(prompt).toContain("waiting on the logic board");
   });
 
   it("leaves the seven actions and /openapi.json unchanged", async () => {
@@ -580,6 +666,8 @@ describe("save a reply to notes", () => {
     expect(repo.notes[0]?.text).toBe("Likely the DC jack. 20V in, 0V at the jack.");
     expect(repo.notes[0]?.jobId).toBe(job.id);
     expect(repo.jobs[0]?.phone).toBe(PHONE);
+    expect(repo.jobs[0]?.status).toBe("diagnosing");
+    expect(saved.ok && saved.value.statusMove).toEqual({ applied: true, from: "new", to: "diagnosing" });
     spy.mockRestore();
 
     const chat = readFileSync("src/app/ask/chat.tsx", "utf8");

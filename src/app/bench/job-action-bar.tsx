@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { fileNoteAction } from "@/app/bench/actions";
 import { ErrorPanel } from "@/app/bench/error-panel";
 import { ChevronIcon } from "@/app/bench/icons";
+import { NoteFiledToast } from "@/app/bench/note-filed-toast";
 import { useOffline } from "@/app/bench/providers";
 import { Sheet, type SheetHandle } from "@/app/bench/sheet";
-import { SaveToast } from "@/app/bench/toast";
 import { usePendingPhrase } from "@/app/bench/use-pending-phrase";
 import { draftKey, draftLauncherLabel, emptyDraft, parseDraft, type NoteDraft } from "@/lib/bench/draft";
 import { idleForm } from "@/lib/bench/form-state";
@@ -15,12 +15,10 @@ import { DEFAULT_NOTE_TAG, NOTE_TAG_OPTIONS } from "@/lib/bench/note-tag-options
 
 export function JobActionBar({
   jobRef,
-  nextMove,
   previousHref,
   nextHref,
 }: {
   jobRef: string;
-  nextMove: string;
   previousHref: string | null;
   nextHref: string | null;
 }) {
@@ -29,7 +27,6 @@ export function JobActionBar({
   const key = draftKey(jobRef);
   const draft = useNoteDraft(key);
   const [open, setOpen] = useState(false);
-  const [moveOpen, setMoveOpen] = useState(false);
   const launcherRef = useRef<HTMLButtonElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const sheetRef = useRef<SheetHandle>(null);
@@ -38,7 +35,6 @@ export function JobActionBar({
   const [seenNotice, setSeenNotice] = useState<string | undefined>(undefined);
   if (state.noticeId && state.noticeId !== seenNotice) {
     setSeenNotice(state.noticeId);
-    setMoveOpen(false);
     setOpen(false);
   }
 
@@ -169,22 +165,6 @@ export function JobActionBar({
               ))}
             </select>
           </label>
-          {moveOpen ? (
-            <label className="field">
-              <span className="field-label">Next move</span>
-              <input name="next_move" maxLength={180} defaultValue={nextMove} autoComplete="off" readOnly={pending} />
-            </label>
-          ) : (
-            <div className="next-move-line">
-              <p>
-                <span className="where-kicker">Next move: </span>
-                {nextMove}
-              </p>
-              <button type="button" className="tech-btn-quiet change-btn" onClick={() => setMoveOpen(true)}>
-                Change
-              </button>
-            </div>
-          )}
           <div className="sheet-submit">
             {state.error ? <ErrorPanel message={state.error} reason={state.reason} /> : null}
             <button className="tech-btn-primary" type="submit" disabled={pending || offline || !text.trim()}>
@@ -193,7 +173,7 @@ export function JobActionBar({
           </div>
         </form>
       </Sheet>
-      <SaveToast message={state.notice} token={state.noticeId} />
+      <NoteFiledToast state={state} jobRef={jobRef} />
     </>
   );
 }

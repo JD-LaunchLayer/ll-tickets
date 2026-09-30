@@ -1,15 +1,16 @@
 import { randomUUID } from "crypto";
 import { plainField } from "@/lib/bench/copy";
+import type { NoteMoneyInput } from "@/lib/bench/note-view";
 import { parsePhone } from "@/lib/bench/phone";
 import { reasonLine } from "@/lib/bench/reason";
 import type { BenchResult } from "@/lib/bench/notes";
-import { isJobStatus, JOB_STATUSES, type Job, type JobStatus } from "@/lib/jobs/domain";
+import { isJobStatus, JOB_STATUSES, type Job, type JobStatus, type PriceBasis } from "@/lib/jobs/domain";
 import { applyStatusChange } from "@/lib/jobs/record";
 import { canonicalJobRef } from "@/lib/jobs/ref";
 import type { JobMatch, JobRepository } from "@/lib/jobs/repository";
 import { parseCreateJob, parseNextMove } from "@/lib/jobs/validate";
 
-/** Used when the phone form does not ask for a next move. Editable on the job page. */
+/** Stored on a new job. The phone view no longer edits it; the list line is derived. */
 export const BENCH_DEFAULT_NEXT_MOVE = "Diagnose the reported fault";
 
 export type BenchListRow = {
@@ -18,44 +19,60 @@ export type BenchListRow = {
   deviceLabel: string;
   status: JobStatus;
   nextMove: string;
+  priceGbp: number | null;
+  priceBasis: PriceBasis | null;
+  priceAgreedAt: string | null;
+  notes: NoteMoneyInput[];
 };
 
-function toRow(match: JobMatch): BenchListRow {
-  return {
-    ref: match.job.ref,
-    customerName: match.job.customerName,
-    deviceLabel: match.job.deviceLabel,
-    status: match.job.status,
-    nextMove: match.job.nextMove,
-  };
-}
-
-function matchesSearch(row: BenchListRow, needle: string): boolean {
+function matchesJob(job: Job, needle: string): boolean {
   if (!needle) return true;
   return (
-    row.customerName.toLocaleLowerCase("en-GB").includes(needle) ||
-    row.deviceLabel.toLocaleLowerCase("en-GB").includes(needle) ||
-    row.ref.toLocaleLowerCase("en-GB").includes(needle)
+    job.customerName.toLocaleLowerCase("en-GB").includes(needle) ||
+    job.deviceLabel.toLocaleLowerCase("en-GB").includes(needle) ||
+    job.ref.toLocaleLowerCase("en-GB").includes(needle)
+  );
+}
+
+async function toRows(repo: JobRepository, matches: JobMatch[], withNotes: boolean): Promise<BenchListRow[]> {
+  return Promise.all(
+    matches.map(async (match) => {
+      const notes = withNotes ? await repo.listNotes(match.job.id) : [];
+      return {
+        ref: match.job.ref,
+        customerName: match.job.customerName,
+        deviceLabel: match.job.deviceLabel,
+        status: match.job.status,
+        nextMove: match.job.nextMove,
+        priceGbp: match.job.priceGbp,
+        priceBasis: match.job.priceBasis,
+        priceAgreedAt: match.job.priceAgreedAt,
+        notes: notes.map(
+          (note): NoteMoneyInput => ({ tag: note.tag, text: note.text, amountGbp: note.amountGbp }),
+        ),
+      };
+    }),
   );
 }
 
 export async function listBenchJobs(
   repo: JobRepository,
-  input: { search: string; includeFinished: boolean },
+  input: { search: string; includeFinished: boolean; withNotes?: boolean },
 ): Promise<{ active: BenchListRow[]; finished: BenchListRow[] }> {
-  const active = (await repo.findJobs({ status: "active" })).map(toRow);
-  let finished: BenchListRow[] = [];
+  const needle = input.search.trim().toLocaleLowerCase("en-GB");
+  const activeMatches = (await repo.findJobs({ status: "active" })).filter((match) => matchesJob(match.job, needle));
+  let finishedMatches: JobMatch[] = [];
   if (input.includeFinished) {
     const collected = await repo.findJobs({ status: "collected" });
     const closed = await repo.findJobs({ status: "closed_no_repair" });
-    finished = [...collected, ...closed]
-      .sort((a, b) => (a.job.updatedAt < b.job.updatedAt ? 1 : a.job.updatedAt > b.job.updatedAt ? -1 : 0))
-      .map(toRow);
+    finishedMatches = [...collected, ...closed]
+      .filter((match) => matchesJob(match.job, needle))
+      .sort((a, b) => (a.job.updatedAt < b.job.updatedAt ? 1 : a.job.updatedAt > b.job.updatedAt ? -1 : 0));
   }
-  const needle = input.search.trim().toLocaleLowerCase("en-GB");
+  const withNotes = input.withNotes === true;
   return {
-    active: active.filter((row) => matchesSearch(row, needle)),
-    finished: finished.filter((row) => matchesSearch(row, needle)),
+    active: await toRows(repo, activeMatches, withNotes),
+    finished: await toRows(repo, finishedMatches, withNotes),
   };
 }
 
@@ -136,6 +153,7 @@ export async function setBenchStatus(
   try {
     const job = await repo.getJobByRef(ref);
     if (!job) return { ok: false, message: "No job with that ref." };
+    if (job.status === status) return { ok: true, value: job };
     const updated = await applyStatusChange(repo, {
       job,
       status,

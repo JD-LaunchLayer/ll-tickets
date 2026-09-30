@@ -6,7 +6,6 @@ import {
   displayNextMove,
   emptyFilterMessage,
   filterNotes,
-  isDefaultNextMove,
   noteCounts,
   noteFilterKey,
   noteFilterOf,
@@ -38,92 +37,75 @@ function statusAction(label: string, status: JobStatus): NextAction {
   return { type: "status", label, status };
 }
 
-describe("isDefaultNextMove", () => {
-  it("matches the intake default and nothing a person typed", () => {
-    expect(DEFAULT).toBe("Diagnose the reported fault");
-    expect(isDefaultNextMove(DEFAULT)).toBe(true);
-    expect(isDefaultNextMove(`  ${DEFAULT.toUpperCase()}  `)).toBe(true);
-    expect(isDefaultNextMove("Order the board")).toBe(false);
-    expect(isDefaultNextMove("Diagnose the reported fault tomorrow")).toBe(false);
-  });
-});
-
 describe("displayNextMove", () => {
-  it("gives LL-HPS3 the parts suggestion and leaves the stored sentence for the caller", () => {
+  it("gives a waiting-on-parts job the part sentence and ignores the stored next move", () => {
     const result = displayNextMove(
       input({
         status: "waiting_on_parts",
+        nextMove: "Order a new battery",
         notes: [board, finding, { tag: "finding", text: "A long ask note.", amountGbp: null }],
       }),
     );
     expect(result).toEqual({
       text: "Waiting for Placeholder logic board. Chase the supplier.",
-      kind: "suggested",
       action: statusAction("Parts arrived", "diagnosing"),
     });
     expect(result.text.length).toBeLessThanOrEqual(90);
+    expect(result.text).not.toContain("battery");
     expect(result.text).not.toBe(DEFAULT);
   });
 
   it.each([
     {
-      name: "R1 collected",
+      name: "collected",
       partial: { status: "collected" as const },
       text: "Job closed.",
-      kind: "suggested" as const,
       action: null,
     },
     {
-      name: "R1 closed",
+      name: "closed",
       partial: { status: "closed_no_repair" as const },
       text: "Job closed.",
-      kind: "suggested" as const,
       action: null,
     },
     {
-      name: "R2 ready",
+      name: "ready",
       partial: { status: "ready" as const },
       text: "Ready. Waiting for the customer to collect.",
-      kind: "suggested" as const,
       action: statusAction("Mark collected", "collected"),
     },
     {
-      name: "R3 waiting on parts",
+      name: "waiting on parts",
       partial: { status: "waiting_on_parts" as const, notes: [board] },
       text: "Waiting for Placeholder logic board. Chase the supplier.",
-      kind: "suggested" as const,
       action: statusAction("Parts arrived", "diagnosing"),
     },
     {
-      name: "R3 names the part when there is no parts note",
+      name: "waiting on parts with no parts note",
       partial: { status: "waiting_on_parts" as const },
       text: "Waiting for the part. Chase the supplier.",
-      kind: "suggested" as const,
       action: statusAction("Parts arrived", "diagnosing"),
     },
     {
-      name: "R4 price not agreed",
+      name: "waiting on customer with a price",
       partial: { status: "waiting_on_customer" as const, priceGbp: 239, priceBasis: "estimate" as const },
       text: "Waiting for the customer to approve £239.",
-      kind: "suggested" as const,
       action: null,
     },
     {
-      name: "R4b waiting on customer",
+      name: "waiting on customer",
       partial: { status: "waiting_on_customer" as const },
       text: "Waiting on the customer.",
-      kind: "suggested" as const,
       action: null,
     },
     {
-      name: "R5 parts and no price",
+      name: "parts and no price",
       partial: { status: "diagnosing" as const, notes: [board] },
       text: "Parts noted (£239). Send the customer the quote.",
-      kind: "suggested" as const,
       action: statusAction("Mark waiting on customer", "waiting_on_customer"),
     },
     {
-      name: "R6 quote agreed",
+      name: "quote agreed",
       partial: {
         status: "diagnosing" as const,
         notes: [board],
@@ -132,44 +114,39 @@ describe("displayNextMove", () => {
         priceAgreedAt: "2026-09-29T20:00:00.000Z",
       },
       text: "Quote agreed. Order Placeholder logic board.",
-      kind: "suggested" as const,
       action: statusAction("Mark waiting on parts", "waiting_on_parts"),
     },
     {
-      name: "R6b parts and a price that is not agreed",
+      name: "parts and a price that is not agreed",
       partial: { status: "diagnosing" as const, notes: [board], priceGbp: 239, priceBasis: "estimate" as const },
       text: "Parts noted (£239). Decide whether to order.",
-      kind: "suggested" as const,
       action: null,
     },
     {
-      name: "R7 finding and no parts",
+      name: "finding and no parts",
       partial: { status: "diagnosing" as const, notes: [finding] },
       text: "Finding recorded. Decide the repair, then note the part.",
-      kind: "suggested" as const,
       action: { type: "note" as const, label: "Add a note" },
     },
     {
-      name: "R9 new",
+      name: "new with no notes",
       partial: { status: "new" as const },
-      text: "Start diagnosing.",
-      kind: "suggested" as const,
-      action: statusAction("Mark diagnosing", "diagnosing"),
+      text: "Start: file your first finding.",
+      action: { type: "note" as const, label: "File a finding" },
     },
-  ])("$name", ({ partial, text, kind, action }) => {
+    {
+      name: "diagnosing with no notes",
+      partial: { status: "diagnosing" as const },
+      text: "Start: file your first finding.",
+      action: { type: "note" as const, label: "File a finding" },
+    },
+  ])("$name", ({ partial, text, action }) => {
     const result = displayNextMove(input(partial));
-    expect(result).toEqual({ text, kind, action });
+    expect(result).toEqual({ text, action });
     expect(result.text.length).toBeLessThanOrEqual(90);
   });
 
-  it("treats R8 as the stored default, not a suggestion", () => {
-    const result = displayNextMove(input({ status: "diagnosing" }));
-    expect(result.kind).toBe("stored");
-    expect(result.text).toBe(DEFAULT);
-    expect(result.action).toEqual({ type: "note", label: "File a finding" });
-  });
-
-  it("keeps a user-typed next move in every status and only adds a status-only button", () => {
+  it("ignores a stored next move in every status", () => {
     const typed = "Call Jordan about the board";
     const statuses: JobStatus[] = [
       "new",
@@ -181,7 +158,8 @@ describe("displayNextMove", () => {
       "closed_no_repair",
     ];
     for (const status of statuses) {
-      const result = displayNextMove(
+      const derived = displayNextMove(input({ status, notes: [board, finding], priceGbp: 239, priceBasis: "estimate" }));
+      const stored = displayNextMove(
         input({
           status,
           nextMove: typed,
@@ -190,8 +168,9 @@ describe("displayNextMove", () => {
           priceBasis: "estimate",
         }),
       );
-      expect(result.text, status).toBe(typed);
-      expect(result.kind, status).toBe("stored");
+      expect(stored.text, status).toBe(derived.text);
+      expect(stored.text, status).not.toContain("Call Jordan");
+      expect(stored.action, status).toEqual(derived.action);
     }
     expect(displayNextMove(input({ status: "ready", nextMove: typed })).action).toEqual(
       statusAction("Mark collected", "collected"),
@@ -199,20 +178,22 @@ describe("displayNextMove", () => {
     expect(displayNextMove(input({ status: "waiting_on_parts", nextMove: typed })).action).toEqual(
       statusAction("Parts arrived", "diagnosing"),
     );
-    expect(displayNextMove(input({ status: "new", nextMove: typed })).action).toEqual(
-      statusAction("Mark diagnosing", "diagnosing"),
+    expect(displayNextMove(input({ status: "new", nextMove: typed })).text).toBe("Start: file your first finding.");
+    expect(displayNextMove(input({ status: "diagnosing", nextMove: typed })).action).toEqual({
+      type: "note",
+      label: "File a finding",
+    });
+    expect(displayNextMove(input({ status: "diagnosing", nextMove: typed, notes: [finding] })).action).toEqual({
+      type: "note",
+      label: "Add a note",
+    });
+    expect(displayNextMove(input({ status: "waiting_on_customer", nextMove: typed })).text).toBe(
+      "Waiting on the customer.",
     );
-    expect(displayNextMove(input({ status: "diagnosing", nextMove: typed, notes: [finding] })).action).toBeNull();
-    expect(displayNextMove(input({ status: "waiting_on_customer", nextMove: typed, priceGbp: 80 })).action).toBeNull();
-    expect(displayNextMove(input({ status: "collected", nextMove: typed })).action).toBeNull();
-  });
-
-  it("derives again when the stored text is put back to the default", () => {
-    const custom = displayNextMove(input({ status: "waiting_on_parts", nextMove: "Chase the supplier" }));
-    expect(custom.kind).toBe("stored");
-    const again = displayNextMove(input({ status: "waiting_on_parts", nextMove: DEFAULT, notes: [board] }));
-    expect(again.kind).toBe("suggested");
-    expect(again.text).toBe("Waiting for Placeholder logic board. Chase the supplier.");
+    expect(displayNextMove(input({ status: "collected", nextMove: typed })).text).toBe("Job closed.");
+    expect(displayNextMove(input({ status: "waiting_on_parts", nextMove: DEFAULT, notes: [board] })).text).toBe(
+      "Waiting for Placeholder logic board. Chase the supplier.",
+    );
   });
 
   it("keeps a long part name inside 90 characters and keeps the instruction", () => {
@@ -299,6 +280,18 @@ describe("addendum C scope", () => {
     expect(actions).toContain('field(formData, "ref")');
     expect(actions).toContain('field(formData, "status")');
     expect(actions).not.toContain("delete");
+    const fileNote = actions.slice(actions.indexOf("async function fileNoteAction"), actions.indexOf("async function setStatusAction"));
+    expect(fileNote).toContain("nextMove: null");
+    expect(fileNote).not.toContain("next_move");
+    const where = readFileSync("src/app/bench/where-at.tsx", "utf8");
+    expect(where).not.toContain("saveNextMoveAction");
+    expect(where).not.toContain("Next move");
+    expect(readFileSync("src/app/bench/job-action-bar.tsx", "utf8")).not.toContain("next_move");
+    const page = readFileSync("src/app/page.tsx", "utf8");
+    expect(page).toContain("withNotes: true");
+    expect(page).toContain("notes: row.notes");
+    expect(page).not.toContain("next={row.nextMove}");
+    expect(page).not.toContain("row.nextMove}");
   });
 });
 

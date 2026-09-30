@@ -28,10 +28,10 @@ function listNext(row: BenchListRow): string {
   return displayNextMove({
     status: row.status,
     nextMove: row.nextMove,
-    priceGbp: null,
-    priceBasis: null,
-    priceAgreedAt: null,
-    notes: [],
+    priceGbp: row.priceGbp,
+    priceBasis: row.priceBasis,
+    priceAgreedAt: row.priceAgreedAt,
+    notes: row.notes,
   }).text;
 }
 
@@ -72,7 +72,7 @@ export default async function Home({
   let failed = false;
   let listError: unknown = null;
   try {
-    const listed = await listBenchJobs(repo, { search: q, includeFinished });
+    const listed = await listBenchJobs(repo, { search: q, includeFinished, withNotes: true });
     active = filterActiveJobs(listed.active, view);
     finished = listed.finished;
   } catch (error) {
@@ -137,7 +137,7 @@ export default async function Home({
           <ul className="job-list">
             {finished.map((row) => (
               <li key={row.ref}>
-                <JobCard row={row} from={from} next={row.nextMove} />
+                <JobCard row={row} from={from} next={listNext(row)} />
               </li>
             ))}
           </ul>

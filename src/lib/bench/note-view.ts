@@ -2,7 +2,7 @@ import type { NoteTag } from "@/lib/jobs/domain";
 
 /**
  * Display rules for the notes feed. Pure functions only.
- * Not imported by the assistant, the Action API or any route handler.
+ * The in-app Ask prompt may read the parts total. Not imported by the Action API or any route handler.
  */
 
 export type NoteMoneyInput = {
