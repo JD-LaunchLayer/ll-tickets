@@ -79,7 +79,6 @@ export default async function JobPage({
         <JobActionBar
           key={job.ref}
           jobRef={job.ref}
-          nextMove={job.nextMove}
           previousHref={place?.previousRef ? jobPath(place.previousRef, from.raw) : null}
           nextHref={place?.nextRef ? jobPath(place.nextRef, from.raw) : null}
         />

@@ -6,7 +6,7 @@ import { JOB_STATUSES, jobEcho, summaryLine, toPublicJob, toPublicNote, type Job
 import { canonicalJobRef } from "@/lib/jobs/ref";
 import { RepositoryError } from "@/lib/jobs/repository-error";
 import { reasonLine } from "@/lib/bench/reason";
-import type { JobRepository } from "@/lib/jobs/repository";
+import type { FindQuery, JobMatch, JobRepository } from "@/lib/jobs/repository";
 import { parseFindJobs } from "@/lib/jobs/validate";
 
 export type AssistantToolContext = {
@@ -16,6 +16,33 @@ export type AssistantToolContext = {
   phones: Set<string>;
   reasons: string[];
 };
+
+function includesFold(haystack: string | null | undefined, needle: string): boolean {
+  if (!haystack) return false;
+  return haystack.toLocaleLowerCase("en-GB").includes(needle.toLocaleLowerCase("en-GB"));
+}
+
+/**
+ * Assistant-only search. The Action API find_jobs still matches the device label only.
+ * A device keyword here also hits the reported fault and the latest note.
+ */
+async function findJobsForAsk(repo: JobRepository, query: FindQuery): Promise<JobMatch[]> {
+  const direct = await repo.findJobs(query);
+  const needle = query.device?.trim() ?? "";
+  if (!needle) return direct;
+  const poolQuery: FindQuery = {};
+  if (query.status) poolQuery.status = query.status;
+  if (query.customerName) poolQuery.customerName = query.customerName;
+  if (query.ref) poolQuery.ref = query.ref;
+  const pool = await repo.findJobs(poolQuery);
+  const seen = new Set(direct.map((match) => match.job.ref));
+  const extra = pool.filter(
+    (match) =>
+      !seen.has(match.job.ref) &&
+      (includesFold(match.job.reportedFault, needle) || includesFold(match.lastNoteSummary, needle)),
+  );
+  return [...direct, ...extra].slice(0, 50);
+}
 
 function remember(ctx: AssistantToolContext, job: Job | null | undefined) {
   if (job?.phone) ctx.phones.add(job.phone);
@@ -87,7 +114,7 @@ export function createAssistantTools(ctx: AssistantToolContext): ToolSet {
 
     find_jobs: tool({
       description:
-        "Search jobs by customer name, device, ref, or status, including past faults. If status is omitted, only active jobs come back. If more than one could match, ask which ref. No phone numbers are returned.",
+        "Search jobs by customer name, device, ref, or status. A device keyword also matches the reported fault and the latest note, so the same brand or the same fault on other models is included. If status is omitted, only active jobs come back. Call again with status collected, and with status closed_no_repair, for past jobs. Do not ask permission before searching. No phone numbers are returned.",
       inputSchema: z.object({
         customer_name: z.string().optional(),
         device: z.string().optional(),
@@ -103,7 +130,7 @@ export function createAssistantTools(ctx: AssistantToolContext): ToolSet {
           if (input.status) url.searchParams.set("status", input.status);
           const parsed = parseFindJobs(url);
           if (!parsed.ok) return reject(ctx, parsed.message);
-          const matches = await ctx.repo.findJobs(parsed.value);
+          const matches = await findJobsForAsk(ctx.repo, parsed.value);
           for (const match of matches) remember(ctx, match.job);
           return forModel(ctx, {
             ok: true,

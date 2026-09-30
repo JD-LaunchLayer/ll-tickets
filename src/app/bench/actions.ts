@@ -3,6 +3,7 @@
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { noteFiledNotice, type NoteStatusMove } from "@/lib/bench/auto-status";
 import { ownerContext } from "@/lib/bench/context";
 import { idleForm, type FormState } from "@/lib/bench/form-state";
 import { createBenchJob, saveBenchNextMove, setBenchStatus } from "@/lib/bench/jobs";
@@ -30,6 +31,21 @@ function saved(message: string): FormState {
   return { error: null, reason: null, notice: message, noticeId: randomUUID() };
 }
 
+function filedNotice(
+  value: { job: { ref: string }; statusMove: NoteStatusMove | null },
+  quietLine: string,
+): FormState {
+  const notice = noteFiledNotice(value.statusMove, quietLine);
+  return {
+    error: null,
+    reason: null,
+    notice: notice.notice,
+    noticeId: randomUUID(),
+    undoStatus: notice.undoStatus,
+    undoRef: notice.undoStatus ? value.job.ref : null,
+  };
+}
+
 export async function createJobAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const { repo } = await ownerContext();
   const result = await createBenchJob(repo, {
@@ -50,14 +66,14 @@ export async function fileNoteAction(_prev: FormState, formData: FormData): Prom
     ref: field(formData, "ref"),
     text: field(formData, "text"),
     tag: tag || null,
-    nextMove: field(formData, "next_move"),
+    nextMove: null,
     clientRequestId: `bench-${randomUUID()}`,
     now: new Date(),
   });
   if (!result.ok) return fromBench(result);
   revalidatePath("/");
   revalidatePath(`/jobs/${result.value.job.ref}`);
-  return saved("Note filed.");
+  return filedNotice(result.value, "Note filed.");
 }
 
 export async function setStatusAction(_prev: FormState, formData: FormData): Promise<FormState> {

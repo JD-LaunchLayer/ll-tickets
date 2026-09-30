@@ -1,3 +1,4 @@
+import type { NoteStatusMove } from "@/lib/bench/auto-status";
 import { addBenchNote, type BenchResult } from "@/lib/bench/notes";
 import { NOTE_TAGS, type Job, type Note, type NoteTag } from "@/lib/jobs/domain";
 import type { JobRepository } from "@/lib/jobs/repository";
@@ -27,7 +28,7 @@ export async function saveAssistantFinding(
     clientRequestId: string;
     now: Date;
   },
-): Promise<BenchResult<{ job: Job; note: Note }>> {
+): Promise<BenchResult<{ job: Job; note: Note; statusMove: NoteStatusMove | null }>> {
   if (!input.confirmed) {
     return { ok: false, message: "Nothing was saved." };
   }

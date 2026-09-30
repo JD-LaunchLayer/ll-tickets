@@ -10,10 +10,10 @@ export function UndoToast({
   onUndo,
 }: {
   message: string | null;
-  token: number | null;
+  token: number | string | null;
   onUndo: () => void;
 }) {
-  const [hiddenToken, setHiddenToken] = useState<number | null>(null);
+  const [hiddenToken, setHiddenToken] = useState<number | string | null>(null);
   const hideAt = useRef(0);
   const timer = useRef(0);
   const paused = useRef(false);

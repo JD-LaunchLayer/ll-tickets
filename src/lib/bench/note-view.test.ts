@@ -288,9 +288,16 @@ describe("note feed scope", () => {
         .split("\n")
         .filter((line) => /^\s*import\b/.test(line) || line.includes("require("));
       for (const name of banned) {
+        // The Ask prompt reads the parts total. The feed UI, actions and the API stay out.
+        if (file === "src/lib/assistant/prompt.ts" && name === "note-view") continue;
         expect(imports.some((line) => line.includes(name)), `${file} imports ${name}`).toBe(false);
       }
     }
+    const promptImports = readFileSync("src/lib/assistant/prompt.ts", "utf8")
+      .split("\n")
+      .filter((line) => /^\s*import\b/.test(line));
+    expect(promptImports.some((line) => line.includes("note-view"))).toBe(true);
+    expect(promptImports.some((line) => line.includes("note-blocks") || line.includes("note-list"))).toBe(false);
   });
 
   it("leaves toPublicNote without a client request id", () => {
@@ -327,9 +334,11 @@ describe("note feed scope", () => {
     for (const file of files) {
       const text = readFileSync(file, "utf8");
       for (const name of banned) {
+        if (file === "src/lib/assistant/prompt.ts" && name === "note-view") continue;
         expect(text.includes(name), `${file} mentions ${name}`).toBe(false);
       }
     }
+    expect(readFileSync("src/lib/assistant/prompt.ts", "utf8")).toContain("note-view");
     const spec = readFileSync("docs/gpt-actions.openapi.json", "utf8");
     expect(spec).not.toContain("now-next");
     expect(spec).not.toContain("note-view");

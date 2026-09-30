@@ -75,6 +75,10 @@ const row = (status: BenchListRow["status"], ref: string): BenchListRow => ({
   deviceLabel: "MacBook",
   status,
   nextMove: "Next",
+  priceGbp: null,
+  priceBasis: null,
+  priceAgreedAt: null,
+  notes: [],
 });
 
 describe("phone view", () => {

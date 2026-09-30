@@ -48,7 +48,7 @@ export const STATUS_LABELS: Record<JobStatus, string> = {
   new: "New",
   diagnosing: "Diagnosing",
   waiting_on_parts: "Waiting on parts",
-  waiting_on_customer: "Waiting on customer",
+  waiting_on_customer: "Waiting on the customer",
   ready: "Ready",
   collected: "Collected",
   closed_no_repair: "Closed, no repair",

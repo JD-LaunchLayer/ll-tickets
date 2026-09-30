@@ -68,6 +68,8 @@ describe("bench notes", () => {
     expect(filed.value.note.summary).toBe(summaryFromNoteText(long));
     expect(filed.value.note.text).toBe(long.trim());
     expect(filed.value.job.nextMove).toBe("Order a fan");
+    expect(filed.value.job.status).toBe("diagnosing");
+    expect(filed.value.statusMove).toEqual({ applied: true, from: "new", to: "diagnosing" });
     expect(repo.notes).toHaveLength(1);
 
     const kept = await addBenchNote(repo, {
@@ -84,7 +86,7 @@ describe("bench notes", () => {
     const same = await addBenchNote(repo, {
       ref: job.ref,
       text: "Still the fan.",
-      tag: "work_done",
+      tag: "customer_contact",
       nextMove: "Order a fan",
       clientRequestId: "bench-note-0003",
       now: at(30),
@@ -143,6 +145,11 @@ describe("bench status", () => {
     if (!reopened.ok) return;
     expect(reopened.value.status).toBe("ready");
     expect(reopened.value.closedAt).toBeNull();
+
+    const again = await setBenchStatus(repo, job.ref, "ready", at(40));
+    expect(again.ok).toBe(true);
+    if (!again.ok) return;
+    expect(again.value.updatedAt).toBe(at(35).toISOString());
 
     const rejected = await setBenchStatus(repo, job.ref, "open", at(45));
     expect(rejected.ok).toBe(false);

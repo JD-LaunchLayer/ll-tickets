@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { saveAssistantNoteAction } from "@/app/ask/actions";
 import { ErrorPanel } from "@/app/bench/error-panel";
 import { SendIcon } from "@/app/bench/icons";
+import { NoteFiledToast } from "@/app/bench/note-filed-toast";
 import { useOffline } from "@/app/bench/providers";
 import { Sheet, type SheetHandle } from "@/app/bench/sheet";
 import { usePendingPhrase } from "@/app/bench/use-pending-phrase";
@@ -109,7 +110,7 @@ export function AskChat({ configured, scopeRef }: { configured: boolean; scopeRe
   const [sheet, setSheet] = useState<SaveDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<FormState>(idleForm);
-  const [toast, setToast] = useState<string | null>(null);
+  const [filed, setFiled] = useState<FormState>(idleForm);
   const savePhrase = usePendingPhrase(saving, "Saving…", "Save");
   const endRef = useRef<HTMLDivElement>(null);
   const draftRef = useRef<HTMLTextAreaElement>(null);
@@ -129,12 +130,6 @@ export function AskChat({ configured, scopeRef }: { configured: boolean; scopeRe
     node.style.height = "auto";
     node.style.height = `${node.scrollHeight}px`;
   }, [draft]);
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 2500);
-    return () => window.clearTimeout(timer);
-  }, [toast]);
 
   async function sendText(text: string) {
     const line = text.trim();
@@ -218,7 +213,7 @@ export function AskChat({ configured, scopeRef }: { configured: boolean; scopeRe
       if (originRef.current) saveDrafts.current.delete(originRef.current);
       originRef.current = null;
       setSheet(null);
-      setToast("Saved to notes.");
+      setFiled(result);
     } catch {
       setSaveError({ error: "Could not file the note.", reason: null });
     } finally {
@@ -272,11 +267,7 @@ export function AskChat({ configured, scopeRef }: { configured: boolean; scopeRe
         ) : null}
         <div ref={endRef} />
       </div>
-      {toast ? (
-        <p className="toast" role="status">
-          {toast}
-        </p>
-      ) : null}
+      <NoteFiledToast state={filed} jobRef={scopeRef ?? ""} />
       <form onSubmit={send} className="composer">
         <label className="sr-only" htmlFor="ask-text">
           Message

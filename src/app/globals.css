@@ -2140,6 +2140,7 @@ html[data-kb="1"] .action-bar {
 .swipe-face {
   position: relative;
   z-index: 1;
+  overflow: visible;
   background: var(--surface);
   border-radius: 16px;
   transition: transform 200ms ease-out;
@@ -2155,14 +2156,19 @@ html[data-kb="1"] .action-bar {
 
 .swipe-item .job-device-line,
 .swipe-item .job-next {
-  padding-right: 44px;
+  padding-right: 64px;
 }
 
 .job-more {
   position: absolute;
-  right: 0;
-  bottom: 0;
+  right: 8px;
+  bottom: 8px;
   z-index: 2;
+}
+
+.job-more,
+.job-more:active {
+  transform: none;
 }
 
 .job-more-mark {

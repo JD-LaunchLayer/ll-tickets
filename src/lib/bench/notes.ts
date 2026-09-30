@@ -1,4 +1,6 @@
+import { autoStatusForNote, type NoteStatusMove } from "@/lib/bench/auto-status";
 import { plainField } from "@/lib/bench/copy";
+import { setBenchStatus } from "@/lib/bench/jobs";
 import { derivedHeadline } from "@/lib/bench/note-view";
 import { reasonLine } from "@/lib/bench/reason";
 import type { Job, Note } from "@/lib/jobs/domain";
@@ -23,6 +25,9 @@ export function summaryFromNoteText(text: string): string {
 /**
  * Files a note the same way add_note does: parseAddNote, then fileNote.
  * A blank next move leaves the current one. The same next move is not written again.
+ * Phone view and Ask save-to-notes both come through here, so the tag can move the status.
+ * The Action API files with fileNote in record.ts and does not call this.
+ * A failed status write still returns the filed note.
  */
 export async function addBenchNote(
   repo: JobRepository,
@@ -34,7 +39,7 @@ export async function addBenchNote(
     clientRequestId: string;
     now: Date;
   },
-): Promise<BenchResult<{ job: Job; note: Note }>> {
+): Promise<BenchResult<{ job: Job; note: Note; statusMove: NoteStatusMove | null }>> {
   const body: Record<string, unknown> = {
     client_request_id: input.clientRequestId,
     ref: input.ref,
@@ -64,7 +69,21 @@ export async function addBenchNote(
       clientRequestId: parsed.value.clientRequestId,
       now: input.now,
     });
-    return { ok: true, value: filed };
+    const target = autoStatusForNote(filed.note.tag, filed.job.status);
+    if (!target) return { ok: true, value: { ...filed, statusMove: null } };
+    const previous = filed.job.status;
+    const moved = await setBenchStatus(repo, filed.job.ref, target, input.now);
+    if (!moved.ok || moved.value.status !== target) {
+      return { ok: true, value: { job: filed.job, note: filed.note, statusMove: { applied: false } } };
+    }
+    return {
+      ok: true,
+      value: {
+        job: moved.value,
+        note: filed.note,
+        statusMove: { applied: true, from: previous, to: target },
+      },
+    };
   } catch (error) {
     const reason = reasonLine(error);
     return reason

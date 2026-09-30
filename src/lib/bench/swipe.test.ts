@@ -1,3 +1,4 @@
+import { readFileSync } from "fs";
 import { describe, expect, it } from "vitest";
 import {
   SWIPE_ANGLE,
@@ -121,5 +122,66 @@ describe("swipeDecision", () => {
     expect(isArchiveStatus("closed_no_repair")).toBe(true);
     expect(isArchiveStatus("diagnosing")).toBe(false);
     expect(isArchiveStatus("ready")).toBe(false);
+  });
+});
+
+function rule(css: string, selector: string): string {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return css.match(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+}
+
+function insideRounded(x: number, y: number, width: number, height: number, radius: number): boolean {
+  if (x < 0 || y < 0 || x > width || y > height) return false;
+  const rx = x < radius ? radius : x > width - radius ? width - radius : x;
+  const ry = y < radius ? radius : y > height - radius ? height - radius : y;
+  if (rx === x && ry === y) return true;
+  const dx = x - rx;
+  const dy = y - ry;
+  return dx * dx + dy * dy <= radius * radius + 0.01;
+}
+
+describe("job menu button", () => {
+  it("keeps a 48px control 8px inside the card at 360 and 390, in both themes", () => {
+    const css = readFileSync("src/app/globals.css", "utf8");
+    const button = rule(css, ".icon-btn");
+    expect(button).toContain("width: 48px");
+    expect(button).toContain("height: 48px");
+    expect(button).toContain("background: var(--surface)");
+    expect(button).toContain("border: 1px solid var(--edge)");
+    const more = rule(css, ".job-more");
+    expect(more).toContain("right: 8px");
+    expect(more).toContain("bottom: 8px");
+    expect(more).not.toMatch(/right:\s*0/);
+    expect(more).not.toMatch(/bottom:\s*0/);
+    expect(more).not.toMatch(/#[0-9a-fA-F]{3,8}/);
+    const item = rule(css, ".swipe-item");
+    expect(item).toContain("overflow: hidden");
+    expect(item).toContain("border-radius: 16px");
+    const face = rule(css, ".swipe-face");
+    expect(face).toContain("overflow: visible");
+    expect(rule(css, ".job-card")).not.toContain("overflow: hidden");
+    const darkAt = css.indexOf("@media (prefers-color-scheme: dark)");
+    const dark = css.slice(darkAt, darkAt + 700);
+    expect(dark).toContain("--surface:");
+    expect(dark).toContain("--edge:");
+    const inset = 8;
+    const size = 48;
+    const radius = 16;
+    for (const width of [360, 390, 360 - 32, 390 - 32]) {
+      const height = 102;
+      const left = width - inset - size;
+      const top = height - inset - size;
+      const corners: Array<[number, number]> = [
+        [left, top],
+        [left + size, top],
+        [left, top + size],
+        [left + size, top + size],
+      ];
+      for (const [x, y] of corners) {
+        expect(insideRounded(x, y, width, height, radius), `${width} ${x},${y}`).toBe(true);
+      }
+      expect(width - (left + size)).toBeGreaterThanOrEqual(8);
+      expect(height - (top + size)).toBeGreaterThanOrEqual(8);
+    }
   });
 });

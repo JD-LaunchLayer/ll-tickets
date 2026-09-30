@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useCallback, useEffect, useRef, useState } from "react";
-import { saveNextMoveAction, setStatusAction } from "@/app/bench/actions";
+import { setStatusAction } from "@/app/bench/actions";
 import { ErrorPanel } from "@/app/bench/error-panel";
 import { ChevronIcon } from "@/app/bench/icons";
 import { useOffline } from "@/app/bench/providers";
@@ -57,17 +57,13 @@ export function NowNext({
       notes: [],
     });
   const [statusOpen, setStatusOpen] = useState(false);
-  const [moveOpen, setMoveOpen] = useState(false);
   const statusButton = useRef<HTMLButtonElement>(null);
-  const moveButton = useRef<HTMLButtonElement>(null);
-  const moveInput = useRef<HTMLInputElement>(null);
   const currentStatus = useRef<HTMLButtonElement>(null);
   const [state, formAction, pending] = useActionState(setStatusAction, idleForm);
   const statusAction = shown.action?.type === "status" ? shown.action : null;
   const phrase = usePendingPhrase(pending, "Saving…", statusAction?.label ?? "Save");
 
   const closeStatus = useCallback(() => setStatusOpen(false), []);
-  const closeMove = useCallback(() => setMoveOpen(false), []);
   const kicker =
     latestKind === "finding" ? "Finding" : latestKind === "note" ? (latestTag ? NOTE_TAG_LABELS[latestTag] : "Untagged") : null;
 
@@ -135,13 +131,12 @@ export function NowNext({
           </button>
         </div>
       )}
-      <button ref={moveButton} type="button" className="now-move" onClick={() => setMoveOpen(true)}>
+      <div className="now-move">
         <span className="now-copy">
-          <span className="where-kicker">{shown.kind === "suggested" ? "Next · suggestion" : "Next"}</span>
+          <span className="where-kicker">Next</span>
           <span className="now-sentence clamp-2">{shown.text}</span>
         </span>
-        <ChevronIcon direction="right" className="icon now-chevron" />
-      </button>
+      </div>
       {statusAction ? (
         <form action={formAction} className="now-action">
           <input type="hidden" name="ref" value={jobRef} />
@@ -165,15 +160,6 @@ export function NowNext({
         currentRef={currentStatus}
         restoreRef={statusButton}
         onClose={closeStatus}
-      />
-      <NextMoveSheet
-        open={moveOpen}
-        jobRef={jobRef}
-        nextMove={nextMove}
-        suggested={shown.kind === "suggested"}
-        inputRef={moveInput}
-        restoreRef={moveButton}
-        onClose={closeMove}
       />
     </section>
   );
@@ -231,63 +217,6 @@ function StatusSheet({
             ))}
           </div>
           {state.error ? <ErrorPanel message={state.error} reason={state.reason} /> : null}
-        </form>
-      </Sheet>
-      <SaveToast message={state.notice} token={state.noticeId} />
-    </>
-  );
-}
-
-function NextMoveSheet({
-  open,
-  jobRef,
-  nextMove,
-  suggested,
-  inputRef,
-  restoreRef,
-  onClose,
-}: {
-  open: boolean;
-  jobRef: string;
-  nextMove: string;
-  suggested: boolean;
-  inputRef: React.RefObject<HTMLInputElement | null>;
-  restoreRef: React.RefObject<HTMLButtonElement | null>;
-  onClose: () => void;
-}) {
-  const offline = useOffline();
-  const [state, action, pending] = useActionState(saveNextMoveAction, idleForm);
-  const phrase = usePendingPhrase(pending, "Saving…", "Save");
-  const seen = useRef<string | undefined>(undefined);
-  useEffect(() => {
-    if (!state.noticeId || state.noticeId === seen.current) return;
-    seen.current = state.noticeId;
-    onClose();
-  }, [state.noticeId, onClose]);
-
-  return (
-    <>
-      <Sheet open={open} title="Next move" onClose={onClose} initialFocusRef={inputRef} restoreFocusRef={restoreRef}>
-        <form action={action} className="sheet-form">
-          <input type="hidden" name="ref" value={jobRef} />
-          {suggested ? <p className="now-helper">This is a suggestion. Save your own text to replace it.</p> : null}
-          <label className="field">
-            <span className="field-label">Next move</span>
-            <input
-              key={nextMove}
-              ref={inputRef}
-              name="next_move"
-              required
-              maxLength={180}
-              defaultValue={nextMove}
-              autoComplete="off"
-              readOnly={pending}
-            />
-          </label>
-          {state.error ? <ErrorPanel message={state.error} reason={state.reason} /> : null}
-          <button className="tech-btn-primary" type="submit" disabled={pending || offline}>
-            {phrase}
-          </button>
         </form>
       </Sheet>
       <SaveToast message={state.notice} token={state.noticeId} />

@@ -3,6 +3,7 @@
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { saveAssistantFinding } from "@/lib/assistant/save-note";
+import { noteFiledNotice } from "@/lib/bench/auto-status";
 import { ownerContext } from "@/lib/bench/context";
 import type { FormState } from "@/lib/bench/form-state";
 
@@ -26,5 +27,13 @@ export async function saveAssistantNoteAction(input: {
   }
   revalidatePath("/");
   revalidatePath(`/jobs/${result.value.job.ref}`);
-  return { error: null, reason: null };
+  const notice = noteFiledNotice(result.value.statusMove, "Saved to notes.");
+  return {
+    error: null,
+    reason: null,
+    notice: notice.notice,
+    noticeId: randomUUID(),
+    undoStatus: notice.undoStatus,
+    undoRef: notice.undoStatus ? result.value.job.ref : null,
+  };
 }

@@ -84,7 +84,10 @@ export async function runAssistantTurn(input: {
       reportedFault: job.reportedFault,
       status: job.status,
       nextMove: job.nextMove,
-      notes: notes.map((note): PromptNote => ({ tag: note.tag, text: note.text })),
+      priceGbp: job.priceGbp,
+      priceBasis: job.priceBasis,
+      priceAgreedAt: job.priceAgreedAt,
+      notes: notes.map((note): PromptNote => ({ tag: note.tag, text: note.text, amountGbp: note.amountGbp })),
     };
   }
 

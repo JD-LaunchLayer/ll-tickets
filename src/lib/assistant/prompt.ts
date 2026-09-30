@@ -1,8 +1,10 @@
-import { NOTE_TAG_LABELS, STATUS_LABELS, type JobStatus, type NoteTag } from "@/lib/jobs/domain";
+import { formatPence, moneyDisplayText, partsSummary } from "@/lib/bench/note-view";
+import { NOTE_TAG_LABELS, STATUS_LABELS, type JobStatus, type NoteTag, type PriceBasis } from "@/lib/jobs/domain";
 
 export type PromptNote = {
   tag: NoteTag | null;
   text: string;
+  amountGbp?: number | null;
 };
 
 export type PromptScope = {
@@ -12,6 +14,9 @@ export type PromptScope = {
   reportedFault: string;
   status: JobStatus;
   nextMove: string;
+  priceGbp: number | null;
+  priceBasis: PriceBasis | null;
+  priceAgreedAt: string | null;
   notes: PromptNote[];
 };
 
@@ -32,8 +37,17 @@ How to answer
 - Never invent part numbers, board revisions, voltages, or model-specific facts you do not know. Say "check the service manual / boardview".
 - Call out safety risks briefly when they apply: mains, swollen batteries, capacitors, liquid damage.
 
+Where to start
+- "Seen anything like this before?", "where do I start?" and "I'm lost" mean the same thing: read THIS job's notes, device and status, and tell him where to start. Do not take them as a request to ask permission.
+- Say what is known in one or two short sentences, then give the first one or two concrete checks, in order.
+- Call find_jobs yourself before you answer. Pass the brand and the fault as device, so the same brand or the same fault on other models is included. Also call it with status collected so past jobs are included. Never ask permission to search.
+- Say plainly in one line what find_jobs found, or that nothing matches.
+- If the notes are empty, ask one short question, then stop. Do not offer a menu. Do not ask him to choose hardware or BIOS.
+- One question in a reply at most. Keep the reply short.
+- Use the status and the parts line. If he is waiting on a part, say so, for example waiting on the logic board.
+
 Tools
-- get_job reads one job. find_jobs searches jobs, including past faults when he asks if he has seen this before.
+- get_job reads one job. find_jobs searches jobs. When he asks if he has seen this before, call find_jobs yourself and answer. Never ask permission to search.
 - Those are your only tools. You cannot create a job, file a note, edit a note, or set a status.
 - He files findings on the job page. On a job chat he can tap Save to notes on your reply. Do not claim you have saved anything.
 
@@ -47,6 +61,28 @@ Privacy
 - Never ask for or store a password, PIN, or passphrase.
 - You never see photo files.
 - You must not message a customer. You cannot text, email, or otherwise contact them. Do not offer to.`;
+
+function pounds(value: number): string {
+  return formatPence(Math.round(value * 100));
+}
+
+function partsLine(notes: readonly PromptNote[]): string {
+  const money = notes.map((note) => ({ tag: note.tag, text: note.text, amountGbp: note.amountGbp ?? null }));
+  const parts = partsSummary(money);
+  const newest = money.find((note) => note.tag === "parts");
+  if (!newest) return "Parts: none on the notes.";
+  const name = moneyDisplayText(newest).split(/\r?\n/, 1)[0]?.replace(/\s+/g, " ").trim() || "the part";
+  if (parts.count === 0) return `Parts: ${name}. No price on the parts notes.`;
+  const label = parts.count === 1 ? "part" : "parts";
+  return `Parts total ${formatPence(parts.pence)} (${parts.count} ${label}): ${name}`;
+}
+
+function priceLine(scope: PromptScope): string {
+  if (scope.priceGbp == null) return "Job price: none.";
+  const basis = scope.priceBasis ?? "unset";
+  const agreed = scope.priceBasis === "quote" && scope.priceAgreedAt ? "agreed" : "not agreed";
+  return `Job price: ${pounds(scope.priceGbp)}, ${basis}, ${agreed}.`;
+}
 
 export function formatJobContext(scope: PromptScope): string {
   const notes =
@@ -65,6 +101,8 @@ export function formatJobContext(scope: PromptScope): string {
     `Device: ${scope.deviceLabel}`,
     `Reported fault: ${scope.reportedFault}`,
     `Status: ${scope.status} (${STATUS_LABELS[scope.status]})`,
+    partsLine(scope.notes),
+    priceLine(scope),
     `Next move: ${scope.nextMove}`,
     "Notes:",
     notes,

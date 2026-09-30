@@ -7,12 +7,11 @@ import type { JobStatus, PriceBasis } from "@/lib/jobs/domain";
  * Pure functions only. Not imported by the assistant, the Action API or any route handler.
  * `notes` are newest first, which is how the repository returns them.
  *
- * The intake default is compared as text. `src/lib/bench/jobs.ts` is server-only, so the
- * literal is repeated here and locked to BENCH_DEFAULT_NEXT_MOVE by the unit test.
+ * The sentence is always derived from status and notes. Stored jobs.next_move is not shown.
  */
-const DEFAULT_NEXT_MOVE = "Diagnose the reported fault";
-
 const SENTENCE_LIMIT = 90;
+
+const START_LINE = "Start: file your first finding.";
 
 export type NextAction =
   | { type: "status"; label: string; status: JobStatus }
@@ -20,13 +19,13 @@ export type NextAction =
 
 export type DisplayNextMove = {
   text: string;
-  kind: "stored" | "suggested";
   action: NextAction | null;
 };
 
 export type DisplayNextMoveInput = {
   status: JobStatus;
-  nextMove: string;
+  /** Stored jobs.next_move. Callers still pass the column. It is never shown. */
+  nextMove?: string;
   priceGbp: number | null;
   priceBasis: PriceBasis | null;
   priceAgreedAt: string | null;
@@ -36,10 +35,6 @@ export type DisplayNextMoveInput = {
 export const NOTE_FILTER_IDS = ["all", "finding", "parts", "contact"] as const;
 
 export type NoteFilterId = (typeof NOTE_FILTER_IDS)[number];
-
-export function isDefaultNextMove(nextMove: string): boolean {
-  return nextMove.trim().toLowerCase() === DEFAULT_NEXT_MOVE.toLowerCase();
-}
 
 export function noteFilterKey(jobRef: string): string {
   return `ll-note-filter:${jobRef}`;
@@ -114,30 +109,11 @@ function fitPart(prefix: string, name: string, suffix: string): string {
   return `${prefix}${name.slice(0, room).trimEnd()}…${suffix}`;
 }
 
-function suggested(text: string, action: NextAction | null): DisplayNextMove {
-  return { text, kind: "suggested", action };
-}
-
-/** Status-only rows that still offer a button when the sentence is the user's own text. */
-function statusOnlyAction(status: JobStatus): NextAction | null {
-  if (status === "ready") return { type: "status", label: "Mark collected", status: "collected" };
-  if (status === "waiting_on_parts") return { type: "status", label: "Parts arrived", status: "diagnosing" };
-  if (status === "new") return { type: "status", label: "Mark diagnosing", status: "diagnosing" };
-  return null;
-}
-
 /**
- * What the Now/Next block shows. A user-typed next move is returned verbatim.
- * The intake default is replaced only for display, and only when a rule other than R8 matches.
+ * What the Now/Next block and the jobs list show.
+ * Always derived from status and notes. A stored next move is ignored.
  */
 export function displayNextMove(input: DisplayNextMoveInput): DisplayNextMove {
-  const stored: DisplayNextMove = {
-    text: input.nextMove,
-    kind: "stored",
-    action: statusOnlyAction(input.status),
-  };
-  if (!isDefaultNextMove(input.nextMove)) return stored;
-
   const parts = partsSummary(input.notes);
   const hasFinding = input.notes.some((note) => note.tag === "finding");
   const priceSet = input.priceGbp != null;
@@ -145,55 +121,45 @@ export function displayNextMove(input: DisplayNextMoveInput): DisplayNextMove {
   const part = partName(input.notes);
   const { status } = input;
 
-  if (status === "collected" || status === "closed_no_repair") return suggested("Job closed.", null);
+  if (status === "collected" || status === "closed_no_repair") return { text: "Job closed.", action: null };
   if (status === "ready") {
-    return suggested("Ready. Waiting for the customer to collect.", {
-      type: "status",
-      label: "Mark collected",
-      status: "collected",
-    });
+    return {
+      text: "Ready. Waiting for the customer to collect.",
+      action: { type: "status", label: "Mark collected", status: "collected" },
+    };
   }
   if (status === "waiting_on_parts") {
-    return suggested(fitPart("Waiting for ", part, ". Chase the supplier."), {
-      type: "status",
-      label: "Parts arrived",
-      status: "diagnosing",
-    });
+    return {
+      text: fitPart("Waiting for ", part, ". Chase the supplier."),
+      action: { type: "status", label: "Parts arrived", status: "diagnosing" },
+    };
   }
   if (status === "waiting_on_customer") {
     if (priceSet && !agreed && input.priceGbp != null) {
-      return suggested(`Waiting for the customer to approve ${formatPriceGbp(input.priceGbp)}.`, null);
+      return { text: `Waiting for the customer to approve ${formatPriceGbp(input.priceGbp)}.`, action: null };
     }
-    return suggested("Waiting on the customer.", null);
+    return { text: "Waiting on the customer.", action: null };
   }
-  if (status === "diagnosing") {
-    if (parts.count > 0 && !priceSet) {
-      return suggested(`Parts noted (${formatPence(parts.pence)}). Send the customer the quote.`, {
-        type: "status",
-        label: "Mark waiting on customer",
-        status: "waiting_on_customer",
-      });
-    }
-    if (parts.count > 0 && agreed) {
-      return suggested(fitPart("Quote agreed. Order ", part, "."), {
-        type: "status",
-        label: "Mark waiting on parts",
-        status: "waiting_on_parts",
-      });
-    }
-    if (parts.count > 0) {
-      return suggested(`Parts noted (${formatPence(parts.pence)}). Decide whether to order.`, null);
-    }
-    if (hasFinding) {
-      return suggested("Finding recorded. Decide the repair, then note the part.", {
-        type: "note",
-        label: "Add a note",
-      });
-    }
-    return { text: input.nextMove, kind: "stored", action: { type: "note", label: "File a finding" } };
+  if (parts.count > 0 && !priceSet) {
+    return {
+      text: `Parts noted (${formatPence(parts.pence)}). Send the customer the quote.`,
+      action: { type: "status", label: "Mark waiting on customer", status: "waiting_on_customer" },
+    };
   }
-  if (status === "new") {
-    return suggested("Start diagnosing.", { type: "status", label: "Mark diagnosing", status: "diagnosing" });
+  if (parts.count > 0 && agreed) {
+    return {
+      text: fitPart("Quote agreed. Order ", part, "."),
+      action: { type: "status", label: "Mark waiting on parts", status: "waiting_on_parts" },
+    };
   }
-  return stored;
+  if (parts.count > 0) {
+    return { text: `Parts noted (${formatPence(parts.pence)}). Decide whether to order.`, action: null };
+  }
+  if (hasFinding) {
+    return {
+      text: "Finding recorded. Decide the repair, then note the part.",
+      action: { type: "note", label: "Add a note" },
+    };
+  }
+  return { text: START_LINE, action: { type: "note", label: "File a finding" } };
 }
