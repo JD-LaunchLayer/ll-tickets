@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { noteFiledNotice, type NoteStatusMove } from "@/lib/bench/auto-status";
 import { ownerContext } from "@/lib/bench/context";
-import { idleForm, type FormState } from "@/lib/bench/form-state";
+import { idleForm, retainJobForm, type FormState, type JobDraft } from "@/lib/bench/form-state";
 import { createBenchJob, saveBenchNextMove, setBenchStatus } from "@/lib/bench/jobs";
 import { addBenchNote } from "@/lib/bench/notes";
 import { reasonLine } from "@/lib/bench/reason";
@@ -47,15 +47,21 @@ function filedNotice(
 }
 
 export async function createJobAction(_prev: FormState, formData: FormData): Promise<FormState> {
-  const { repo } = await ownerContext();
-  const result = await createBenchJob(repo, {
+  const draft: JobDraft = {
     customerName: field(formData, "customer_name"),
     deviceLabel: field(formData, "device_label"),
     reportedFault: field(formData, "reported_fault"),
     phone: field(formData, "phone"),
+  };
+  const { repo } = await ownerContext();
+  const result = await createBenchJob(repo, {
+    customerName: draft.customerName,
+    deviceLabel: draft.deviceLabel,
+    reportedFault: draft.reportedFault,
+    phone: draft.phone,
     now: new Date(),
   });
-  if (!result.ok) return fromBench(result);
+  if (!result.ok) return retainJobForm(draft, result, randomUUID());
   redirect(`/jobs/${result.value.ref}`);
 }
 

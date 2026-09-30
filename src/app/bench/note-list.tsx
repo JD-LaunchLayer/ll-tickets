@@ -6,6 +6,8 @@ import { NoteBody } from "@/app/bench/note-blocks";
 import { formatBenchTime } from "@/lib/bench/format";
 import {
   emptyFilterMessage,
+  filterChipAriaLabel,
+  filterChipShowsCount,
   filterNotes,
   noteCounts,
   noteFilterKey,
@@ -282,6 +284,7 @@ export function NoteList({
         {FILTERS.map((item) => {
           const selected = filter === item.id;
           const count = counts[item.id];
+          const showCount = filterChipShowsCount(count) && !dropCounts;
           return (
             <button
               key={item.id}
@@ -292,11 +295,16 @@ export function NoteList({
               className="filter-chip"
               role="radio"
               aria-checked={selected}
+              aria-label={filterChipAriaLabel(item.label, count)}
               tabIndex={selected ? 0 : -1}
               onClick={() => writeFilter(jobRef, item.id)}
             >
-              {item.label}
-              {dropCounts ? null : <span className="filter-count"> {count}</span>}
+              <span className="filter-chip-label">{item.label}</span>
+              {showCount ? (
+                <span className="filter-count" aria-hidden="true">
+                  {count}
+                </span>
+              ) : null}
             </button>
           );
         })}

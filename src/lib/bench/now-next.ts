@@ -76,6 +76,17 @@ export function noteCounts(notes: readonly { tag: string | null }[]): Record<Not
   return counts;
 }
 
+/** Zero stays off the chip, including All. All still shows its count once any note exists. */
+export function filterChipShowsCount(count: number): boolean {
+  return count > 0;
+}
+
+export function filterChipAriaLabel(label: string, count: number): string {
+  if (!filterChipShowsCount(count)) return label;
+  const notes = count === 1 ? "note" : "notes";
+  return `${label}, ${count} ${notes}`;
+}
+
 /** The note shown in row 2, and only when that row is a real Finding. */
 export function shownAboveId<T extends { id: string; tag: string | null }>(notes: readonly T[]): string | null {
   const latest = latestNote(notes);

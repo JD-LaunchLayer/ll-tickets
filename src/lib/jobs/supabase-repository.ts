@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { phoneForStorage } from "@/lib/bench/phone";
 import type { Database, Json } from "@/lib/database.types";
 import {
   closedAtAfterStatusChange,
@@ -155,7 +156,7 @@ export class SupabaseJobRepository implements JobRepository {
           price_agreed_at: input.priceAgreedAt,
           backup_position: input.backupPosition,
           access_given: input.accessGiven,
-          phone: input.phone?.trim() || null,
+          phone: phoneForStorage(input.phone),
           follow_up_at: input.followUpAt,
           created_at: input.createdAt,
           updated_at: input.createdAt,

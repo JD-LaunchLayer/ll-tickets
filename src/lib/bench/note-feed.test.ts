@@ -11,6 +11,7 @@ import { NoteList, type NoteRow } from "@/app/bench/note-list";
 import { ReplyBlocks } from "@/app/bench/note-blocks";
 import { SaveHeadline } from "@/app/bench/save-headline";
 import { WhereAt } from "@/app/bench/where-at";
+import { BRAND, contrast } from "@/lib/brand";
 import { noteHeadline, noteOpenKey, readNoteOpenIds } from "@/lib/bench/note-view";
 import { NOTE_TAG_LABELS, NOTE_TAGS, type NoteTag } from "@/lib/jobs/domain";
 
@@ -326,5 +327,54 @@ describe("note rows", () => {
     } else {
       expect(["0.16s", "160ms"]).toContain(duration);
     }
+  });
+
+  it("shows note counts as a separate badge and hides a zero", async () => {
+    const notes: NoteRow[] = [
+      row({ id: "f1", tag: "finding", text: "Rail drops." }),
+      row({ id: "f2", tag: "finding", text: "Caps look dry." }),
+      row({ id: "p1", tag: "parts", text: "Fan." }),
+      row({ id: "w1", tag: "work_done", text: "Cleaned it." }),
+    ];
+    const mounted = await render(createElement(NoteList, { jobRef: "LL-HPS3", notes }));
+    const chips = [...mounted.container.querySelectorAll<HTMLButtonElement>(".filter-chip")];
+    expect(mounted.container.querySelector("[role='radiogroup']")?.getAttribute("aria-label")).toBe("Filter notes");
+    expect(chips).toHaveLength(4);
+    const byName = (label: string) => chips.find((chip) => chip.getAttribute("aria-label") === label);
+    const all = byName("All, 4 notes");
+    const findings = byName("Findings, 2 notes");
+    const parts = byName("Parts, 1 note");
+    const contact = byName("Contact");
+    expect(all?.querySelector(".filter-chip-label")?.textContent).toBe("All");
+    expect(all?.querySelector(".filter-count")?.textContent).toBe("4");
+    expect(findings?.querySelector(".filter-chip-label")?.textContent).toBe("Findings");
+    expect(findings?.querySelector(".filter-count")?.textContent).toBe("2");
+    expect(findings?.querySelector(".filter-count")?.getAttribute("aria-hidden")).toBe("true");
+    expect(parts?.querySelector(".filter-count")?.textContent).toBe("1");
+    expect(contact?.querySelector(".filter-count")).toBeNull();
+    expect(contact?.querySelector(".filter-chip-label")?.textContent).toBe("Contact");
+    for (const chip of chips) expect(chip.getAttribute("role")).toBe("radio");
+
+    const css = readFileSync("src/app/globals.css", "utf8");
+    expect(css).toMatch(/\.filter-chip\s*\{[^}]*height:\s*48px/);
+    expect(css).toMatch(/\.filter-chip\s*\{[^}]*min-height:\s*48px/);
+    expect(css).toMatch(/\.filter-chip\s*\{[^}]*flex-direction:\s*column/);
+    expect(css).toMatch(/\.filter-chip\s*\{[^}]*gap:\s*4px/);
+    expect(css).toMatch(/\.filter-count\s*\{[^}]*background:\s*var\(--accent-tint\)/);
+    expect(css).toMatch(/\.filter-count\s*\{[^}]*color:\s*var\(--ink\)/);
+    expect(css).toMatch(/\.filter-chip\[aria-checked="true"\] \.filter-count\s*\{[^}]*color:\s*var\(--accent\)/);
+    expect(css).toMatch(/\.filter-chip\[aria-checked="true"\] \.filter-count\s*\{[^}]*background:\s*var\(--on-accent\)/);
+    const pairs: Array<[string, string]> = [
+      [BRAND.ink, BRAND.accentTint],
+      [BRAND.darkInk, BRAND.darkAccentTint],
+      [BRAND.accent, BRAND.onAccent],
+      [BRAND.onAccent, BRAND.accent],
+      [BRAND.ink, BRAND.surface],
+      [BRAND.darkInk, BRAND.darkSurface],
+    ];
+    for (const [foreground, background] of pairs) {
+      expect(contrast(foreground, background)).toBeGreaterThanOrEqual(4.5);
+    }
+    await unmount(mounted);
   });
 });

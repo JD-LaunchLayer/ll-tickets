@@ -1,13 +1,13 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addPhotoAction, createJobAction } from "@/app/bench/actions";
 import { ErrorPanel } from "@/app/bench/error-panel";
 import { useOffline } from "@/app/bench/providers";
 import { SaveToast } from "@/app/bench/toast";
 import { usePendingPhrase } from "@/app/bench/use-pending-phrase";
-import { idleForm, type FormState } from "@/lib/bench/form-state";
+import { idleForm, JOB_FIELD_INPUT, type FormState, type JobFormField } from "@/lib/bench/form-state";
 import { formatBenchTime } from "@/lib/bench/format";
 import { compressPhoto } from "@/lib/photos/compress";
 import { PHOTO_MAX_BYTES } from "@/lib/photos/path";
@@ -18,39 +18,72 @@ function FieldError({ message, reason }: { message: string | null; reason?: stri
   return <ErrorPanel message={message} reason={reason} />;
 }
 
-export function CreateJobForm() {
-  const [state, action, pending] = useActionState(createJobAction, idleForm);
+function describedBy(field: JobFormField, state: FormState, hintId?: string): string | undefined {
+  const invalid = state.field === field;
+  const errorId = invalid ? `${JOB_FIELD_INPUT[field]}-error` : undefined;
+  const ids = [hintId, errorId].filter((id): id is string => Boolean(id));
+  return ids.length > 0 ? ids.join(" ") : undefined;
+}
+
+function FieldMessage({ field, state }: { field: JobFormField; state: FormState }) {
+  if (state.field !== field || !state.fieldMessage) return null;
+  return (
+    <p id={`${JOB_FIELD_INPUT[field]}-error`} className="field-error" role="alert">
+      {state.fieldMessage}
+    </p>
+  );
+}
+
+export function CreateJobForm({ initialState = idleForm }: { initialState?: FormState }) {
+  const [state, action, pending] = useActionState(createJobAction, initialState);
   const offline = useOffline();
   const phrase = usePendingPhrase(pending, "Creating…", "Create job");
+  const draft = state.draft;
+
+  useEffect(() => {
+    if (!state.field) return;
+    document.getElementById(JOB_FIELD_INPUT[state.field])?.focus();
+  }, [state.field, state.formKey]);
 
   return (
     <form action={action} className="pin-form">
-      <div className="pin-form-body">
+      <div className="pin-form-body" key={state.formKey ?? "new"}>
         <label className="field">
           <span className="field-label">Customer name</span>
           <input
+            id={JOB_FIELD_INPUT.customerName}
             name="customer_name"
             required
             maxLength={120}
             autoComplete="name"
             autoCapitalize="words"
             readOnly={pending}
+            defaultValue={draft?.customerName ?? ""}
+            aria-invalid={state.field === "customerName" ? true : undefined}
+            aria-describedby={describedBy("customerName", state)}
           />
+          <FieldMessage field="customerName" state={state} />
         </label>
         <label className="field">
           <span className="field-label">Device</span>
           <input
+            id={JOB_FIELD_INPUT.deviceLabel}
             name="device_label"
             required
             maxLength={160}
             autoComplete="off"
             autoCapitalize="words"
             readOnly={pending}
+            defaultValue={draft?.deviceLabel ?? ""}
+            aria-invalid={state.field === "deviceLabel" ? true : undefined}
+            aria-describedby={describedBy("deviceLabel", state)}
           />
+          <FieldMessage field="deviceLabel" state={state} />
         </label>
         <label className="field">
           <span className="field-label">Reported fault</span>
           <textarea
+            id={JOB_FIELD_INPUT.reportedFault}
             className="fault-input"
             name="reported_fault"
             required
@@ -58,19 +91,30 @@ export function CreateJobForm() {
             rows={3}
             autoCapitalize="sentences"
             readOnly={pending}
+            defaultValue={draft?.reportedFault ?? ""}
+            aria-invalid={state.field === "reportedFault" ? true : undefined}
+            aria-describedby={describedBy("reportedFault", state)}
           />
+          <FieldMessage field="reportedFault" state={state} />
         </label>
         <label className="field">
           <span className="field-label">Phone number</span>
           <input
+            id={JOB_FIELD_INPUT.phone}
             name="phone"
             type="tel"
             inputMode="tel"
             autoComplete="tel"
-            maxLength={30}
+            maxLength={40}
             readOnly={pending}
+            defaultValue={draft?.phone ?? ""}
+            aria-invalid={state.field === "phone" ? true : undefined}
+            aria-describedby={describedBy("phone", state, "phone-hint")}
           />
-          <span className="field-hint">Optional. Tap-to-call on the job. The GPT never sees it.</span>
+          <span id="phone-hint" className="field-hint">
+            Optional. Tap-to-call on the job. The GPT never sees it.
+          </span>
+          <FieldMessage field="phone" state={state} />
         </label>
       </div>
       {state.error ? (

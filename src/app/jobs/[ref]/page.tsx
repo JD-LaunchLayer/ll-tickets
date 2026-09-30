@@ -14,7 +14,7 @@ import { displayNextMove } from "@/lib/bench/now-next";
 import { jobPath, listPath, orderedJobRefs, parseFromQuery, placeAriaLabel, placeInList, placeLabel } from "@/lib/bench/list-place";
 import { filterActiveJobs } from "@/lib/bench/filters";
 import { listBenchJobs, loadBenchJob } from "@/lib/bench/jobs";
-import { telHref } from "@/lib/bench/phone";
+import { displayPhone, telHref } from "@/lib/bench/phone";
 import { createPrivatePhotoUrl } from "@/lib/photos/signed-url";
 import { signJobPhotos, type SignedPhoto } from "@/lib/photos/views";
 
@@ -102,7 +102,7 @@ export default async function JobPage({
         key={job.ref}
         name={job.customerName}
         device={job.deviceLabel}
-        phone={job.phone}
+        phone={job.phone ? displayPhone(job.phone) : null}
         call={call}
         fault={job.reportedFault}
         startOpen={notes.length === 0}
