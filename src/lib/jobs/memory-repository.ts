@@ -8,21 +8,20 @@ import {
   type Photo,
 } from "@/lib/jobs/domain";
 import { generateJobRef } from "@/lib/jobs/ref";
-import type {
-  AuditEntry,
-  FindQuery,
-  IdempotencyClaim,
-  IdempotencyRecord,
-  JobMatch,
-  JobPatch,
-  JobRepository,
-  NewJob,
-  NewNote,
-  NewPhoto,
-  NotePatch,
+import {
+  FIND_LIMIT,
+  type AuditEntry,
+  type FindQuery,
+  type IdempotencyClaim,
+  type IdempotencyRecord,
+  type JobMatch,
+  type JobPatch,
+  type JobRepository,
+  type NewJob,
+  type NewNote,
+  type NewPhoto,
+  type NotePatch,
 } from "@/lib/jobs/repository";
-
-const FIND_LIMIT = 50;
 
 function includesFold(haystack: string, needle: string): boolean {
   return haystack.toLocaleLowerCase("en-GB").includes(needle.toLocaleLowerCase("en-GB"));
@@ -117,12 +116,18 @@ export class MemoryJobRepository implements JobRepository {
 
   async findJobs(query: FindQuery): Promise<JobMatch[]> {
     const status = query.status ?? "active";
+    const device = query.device?.trim() ?? "";
     const matched = this.jobs.filter((job) => {
       if (query.ref && job.ref !== query.ref) return false;
-      if (query.customerName && !includesFold(job.customerName, query.customerName)) return false;
-      if (query.device && !includesFold(job.deviceLabel, query.device)) return false;
-      if (status === "active") return job.status !== "collected" && job.status !== "closed_no_repair";
-      return job.status === status;
+      if (status === "active") {
+        if (job.status === "collected" || job.status === "closed_no_repair") return false;
+      } else if (job.status !== status) return false;
+      if (!device) return true;
+      if (includesFold(job.deviceLabel, device) || includesFold(job.reportedFault, device)) return true;
+      return this.notes.some(
+        (note) =>
+          note.jobId === job.id && (includesFold(note.text, device) || includesFold(note.summary, device)),
+      );
     });
     matched.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
     return matched.slice(0, FIND_LIMIT).map((job) => ({

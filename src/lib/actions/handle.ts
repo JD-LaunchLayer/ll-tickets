@@ -6,9 +6,11 @@ import {
   summaryLine,
   toPublicJob,
   toPublicNote,
+  UNRECORDED_CUSTOMER,
   type Job,
   type Note,
 } from "@/lib/jobs/domain";
+import { NAME_REPLACED_MESSAGE, presentAction, scrubNoteCopy } from "@/lib/jobs/name-scrub";
 import { canonicalJobRef } from "@/lib/jobs/ref";
 import { applyStatusChange, fileNote } from "@/lib/jobs/record";
 import type { JobRepository } from "@/lib/jobs/repository";
@@ -50,10 +52,11 @@ function json(status: number, body: unknown, extraHeaders?: HeadersInit): Respon
 }
 
 function fail(status: number, code: string, message: string, job?: Job | null, ref?: string): Response {
-  return json(status, {
+  const body = {
     error: { code, message },
     ...(job ? jobEcho(job) : ref ? { ref } : {}),
-  });
+  };
+  return json(status, job ? presentAction(job, body) : body);
 }
 
 function clientAddress(request: Request): string {
@@ -127,11 +130,11 @@ async function write(
   const now = runtime.now();
 
   if (operation === "create_job") {
-    const parsed = parseCreateJob(raw.value, now);
+    const parsed = parseCreateJob(raw.value, now, "action");
     if (!parsed.ok) return fail(400, "validation_error", parsed.message);
     return commit(repo, operation, parsed.value.clientRequestId, hash, now, async () => {
       const job = await repo.createJob({
-        customerName: parsed.value.customerName,
+        customerName: UNRECORDED_CUSTOMER,
         deviceLabel: parsed.value.deviceLabel,
         reportedFault: parsed.value.reportedFault,
         nextMove: parsed.value.nextMove,
@@ -144,7 +147,7 @@ async function write(
         createdAt: now.toISOString(),
         phone: null,
       });
-      return { ok: true, status: 200, body: toPublicJob(job), jobId: job.id };
+      return { ok: true, status: 200, body: presentAction(job, toPublicJob(job)), jobId: job.id };
     });
   }
 
@@ -153,14 +156,22 @@ async function write(
     if (!parsed.ok) return fail(400, "validation_error", parsed.message);
     const job = await repo.getJobByRef(parsed.value.ref);
     if (!job) return fail(404, "not_found", "No job with that ref.", null, parsed.value.ref);
+    const scrubbed = scrubNoteCopy(
+      {
+        text: parsed.value.text,
+        summary: parsed.value.summary,
+        partDetail: parsed.value.partDetail,
+      },
+      job.customerName,
+    );
     return commit(repo, operation, parsed.value.clientRequestId, hash, now, async () => {
       const filed = await fileNote(repo, {
         job,
-        text: parsed.value.text,
-        summary: parsed.value.summary,
+        text: scrubbed.text ?? parsed.value.text,
+        summary: scrubbed.summary ?? parsed.value.summary,
         tag: parsed.value.tag,
         amountGbp: parsed.value.amountGbp,
-        partDetail: parsed.value.partDetail,
+        partDetail: scrubbed.partDetail === undefined ? parsed.value.partDetail : scrubbed.partDetail,
         ...(parsed.value.nextMove ? { nextMove: parsed.value.nextMove } : {}),
         clientRequestId: parsed.value.clientRequestId,
         now,
@@ -168,7 +179,11 @@ async function write(
       return {
         ok: true,
         status: 200,
-        body: { ...jobEcho(filed.job), note: toPublicNote(filed.note) },
+        body: presentAction(filed.job, {
+          ...jobEcho(filed.job),
+          note: toPublicNote(filed.note),
+          ...(scrubbed.replaced ? { notice: NAME_REPLACED_MESSAGE } : {}),
+        }),
         jobId: filed.job.id,
       };
     });
@@ -183,22 +198,40 @@ async function write(
     if (!note || note.jobId !== job.id) {
       return fail(404, "not_found", "That note is not on this job.", job);
     }
-    if (noteUnchanged(note, parsed.value)) {
+    const scrubbed = scrubNoteCopy(
+      {
+        ...(parsed.value.text !== undefined ? { text: parsed.value.text } : {}),
+        ...(parsed.value.summary !== undefined ? { summary: parsed.value.summary } : {}),
+        ...(parsed.value.partDetail !== undefined ? { partDetail: parsed.value.partDetail } : {}),
+      },
+      job.customerName,
+    );
+    const patch: EditNoteInput = {
+      ...parsed.value,
+      ...(scrubbed.text !== undefined ? { text: scrubbed.text } : {}),
+      ...(scrubbed.summary !== undefined ? { summary: scrubbed.summary } : {}),
+      ...(scrubbed.partDetail !== undefined ? { partDetail: scrubbed.partDetail } : {}),
+    };
+    if (noteUnchanged(note, patch)) {
       return fail(400, "validation_error", "That note already says this.", job);
     }
     return commit(repo, operation, parsed.value.clientRequestId, hash, now, async () => {
       const edited = await repo.editNote(note.id, {
-        ...(parsed.value.text !== undefined ? { text: parsed.value.text } : {}),
-        ...(parsed.value.summary !== undefined ? { summary: parsed.value.summary } : {}),
-        ...(parsed.value.tag !== undefined ? { tag: parsed.value.tag } : {}),
-        ...(parsed.value.amountGbp !== undefined ? { amountGbp: parsed.value.amountGbp } : {}),
-        ...(parsed.value.partDetail !== undefined ? { partDetail: parsed.value.partDetail } : {}),
+        ...(patch.text !== undefined ? { text: patch.text } : {}),
+        ...(patch.summary !== undefined ? { summary: patch.summary } : {}),
+        ...(patch.tag !== undefined ? { tag: patch.tag } : {}),
+        ...(patch.amountGbp !== undefined ? { amountGbp: patch.amountGbp } : {}),
+        ...(patch.partDetail !== undefined ? { partDetail: patch.partDetail } : {}),
         editedAt: now.toISOString(),
       });
       return {
         ok: true,
         status: 200,
-        body: { ...jobEcho(job), note: toPublicNote(edited.note) },
+        body: presentAction(job, {
+          ...jobEcho(job),
+          note: toPublicNote(edited.note),
+          ...(scrubbed.replaced ? { notice: NAME_REPLACED_MESSAGE } : {}),
+        }),
         jobId: job.id,
       };
     });
@@ -222,7 +255,7 @@ async function write(
         ...(parsed.value.followUpAt !== undefined ? { followUpAt: parsed.value.followUpAt } : {}),
         now,
       });
-      return { ok: true, status: 200, body: toPublicJob(updated), jobId: updated.id };
+      return { ok: true, status: 200, body: presentAction(updated, toPublicJob(updated)), jobId: updated.id };
     });
   }
 
@@ -242,23 +275,28 @@ async function write(
   return commit(repo, operation, parsed.value.clientRequestId, hash, now, async () => {
     let event: { eventId: string; action: "created" | "updated" };
     try {
+      const named = job.customerName !== UNRECORDED_CUSTOMER;
       event = await runtime.calendar.upsertPrivateEvent({
         eventId: job.calendarEventId,
-        summary: `Collect ${job.ref} · ${job.customerName} · ${job.deviceLabel}`,
-        description: `Collection for ${job.customerName} — ${job.deviceLabel} (${job.ref}). Private workshop entry. The customer is not invited.`,
+        summary: named
+          ? `Collect ${job.ref} · ${job.customerName} · ${job.deviceLabel}`
+          : `Collect ${job.ref} · ${job.deviceLabel}`,
+        description: named
+          ? `Collection for ${job.customerName} — ${job.deviceLabel} (${job.ref}). Private workshop entry. The customer is not invited.`
+          : `Collection for ${job.deviceLabel} (${job.ref}). Private workshop entry. The customer is not invited.`,
         startsAt: parsed.value.collectionAt,
       });
     } catch {
       return {
         ok: false,
         status: 502,
-        body: {
+        body: presentAction(job, {
           ...jobEcho(job),
           error: {
             code: "calendar_failed",
             message: "Google Calendar did not accept the entry. The collection time was not saved.",
           },
-        },
+        }),
       };
     }
     try {
@@ -270,12 +308,12 @@ async function write(
       return {
         ok: true,
         status: 200,
-        body: {
+        body: presentAction(updated, {
           ...jobEcho(updated),
           collection_at: updated.collectionAt,
           calendar_event_id: updated.calendarEventId,
           calendar: event.action,
-        },
+        }),
         jobId: updated.id,
       };
     } catch {
@@ -285,10 +323,10 @@ async function write(
       return {
         ok: false,
         status: 500,
-        body: {
+        body: presentAction(job, {
           ...jobEcho(job),
           error: { code: "internal_error", message: "The collection time could not be saved." },
-        },
+        }),
       };
     }
   });
@@ -352,13 +390,16 @@ async function getJob(request: Request, repo: JobRepository, rawRef: string | un
   if (!job) return fail(404, "not_found", "No job with that ref.", null, ref);
   const notes = await repo.listNotes(job.id);
   const photos = await repo.listPhotoCaptions(job.id);
-  return json(200, {
-    ...jobEcho(job),
-    job: toPublicJob(job),
-    notes: notes.map(toPublicNote),
-    photo_count: photos.count,
-    photo_captions: photos.captions,
-  });
+  return json(
+    200,
+    presentAction(job, {
+      ...jobEcho(job),
+      job: toPublicJob(job),
+      notes: notes.map(toPublicNote),
+      photo_count: photos.count,
+      photo_captions: photos.captions,
+    }),
+  );
 }
 
 async function findJobs(request: Request, repo: JobRepository): Promise<Response> {
@@ -368,26 +409,26 @@ async function findJobs(request: Request, repo: JobRepository): Promise<Response
   const matches = await repo.findJobs(parsed.value);
   return json(200, {
     filter: {
-      customer_name: parsed.value.customerName ?? null,
       device: parsed.value.device ?? null,
       ref: parsed.value.ref ?? null,
       status: parsed.value.status ?? "active",
     },
-    jobs: matches.map(({ job, lastNoteSummary }) => ({
-      ref: job.ref,
-      customer_name: job.customerName,
-      device_label: job.deviceLabel,
-      status: job.status,
-      next_move: job.nextMove,
-      last_note_summary: lastNoteSummary,
-      summary_line: summaryLine({
+    jobs: matches.map(({ job, lastNoteSummary }) =>
+      presentAction(job, {
         ref: job.ref,
-        customerName: job.customerName,
-        deviceLabel: job.deviceLabel,
+        device_label: job.deviceLabel,
+        reported_fault: job.reportedFault,
         status: job.status,
-        nextMove: job.nextMove,
-        lastNoteSummary,
+        next_move: job.nextMove,
+        last_note_summary: lastNoteSummary,
+        summary_line: summaryLine({
+          ref: job.ref,
+          deviceLabel: job.deviceLabel,
+          status: job.status,
+          nextMove: job.nextMove,
+          lastNoteSummary,
+        }),
       }),
-    })),
+    ),
   });
 }

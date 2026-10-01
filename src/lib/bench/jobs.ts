@@ -4,7 +4,7 @@ import type { NoteMoneyInput } from "@/lib/bench/note-view";
 import { parsePhone } from "@/lib/bench/phone";
 import { reasonLine } from "@/lib/bench/reason";
 import type { BenchResult } from "@/lib/bench/notes";
-import { isJobStatus, JOB_STATUSES, type Job, type JobStatus, type PriceBasis } from "@/lib/jobs/domain";
+import { displayCustomerName, isJobStatus, JOB_STATUSES, type Job, type JobStatus, type PriceBasis } from "@/lib/jobs/domain";
 import { applyStatusChange } from "@/lib/jobs/record";
 import { canonicalJobRef } from "@/lib/jobs/ref";
 import type { JobMatch, JobRepository } from "@/lib/jobs/repository";
@@ -28,6 +28,7 @@ export type BenchListRow = {
 function matchesJob(job: Job, needle: string): boolean {
   if (!needle) return true;
   return (
+    displayCustomerName(job.customerName).toLocaleLowerCase("en-GB").includes(needle) ||
     job.customerName.toLocaleLowerCase("en-GB").includes(needle) ||
     job.deviceLabel.toLocaleLowerCase("en-GB").includes(needle) ||
     job.ref.toLocaleLowerCase("en-GB").includes(needle)

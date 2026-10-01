@@ -135,7 +135,7 @@ export function displayNextMove(input: DisplayNextMoveInput): DisplayNextMove {
   if (status === "collected" || status === "closed_no_repair") return { text: "Job closed.", action: null };
   if (status === "ready") {
     return {
-      text: "Ready. Waiting for the customer to collect.",
+      text: "Ready to collect. Waiting for the customer to collect.",
       action: { type: "status", label: "Mark collected", status: "collected" },
     };
   }

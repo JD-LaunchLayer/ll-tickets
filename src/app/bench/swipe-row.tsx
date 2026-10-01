@@ -11,6 +11,7 @@ import {
   type SwipeGesture,
 } from "@/lib/bench/swipe";
 import type { BenchListRow } from "@/lib/bench/jobs";
+import { displayCustomerName } from "@/lib/jobs/domain";
 
 const ArchiveContext = createContext<ReturnType<typeof useArchive> | null>(null);
 
@@ -203,7 +204,7 @@ export function SwipeRow({ row, children }: { row: BenchListRow; children: React
         <button
           type="button"
           className="icon-btn job-more"
-          aria-label={`Actions for ${row.customerName}, ${row.ref}`}
+          aria-label={`Actions for ${displayCustomerName(row.customerName)}, ${row.ref}`}
           aria-haspopup="dialog"
           onClick={() => archive.openArchive(targetOf(row))}
         >

@@ -56,6 +56,10 @@ describe("OpenAPI spec", () => {
     expect(blob).not.toMatch(/sms|twilio|send_email|send_message/i);
     const names = propertyNames({ properties: spec.components.schemas });
     expect(names.has("phone")).toBe(false);
+    expect(names.has("customer_name")).toBe(false);
+    expect(JSON.stringify(spec)).toContain("Ready to collect");
+    const status = spec.components.schemas.SetStatusRequest?.properties?.status as { enum?: string[] };
+    expect(status.enum).toContain("ready");
     expect(names.has("password")).toBe(false);
     expect(names.has("storage_path")).toBe(false);
   });

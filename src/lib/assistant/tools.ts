@@ -3,10 +3,11 @@ import { z } from "zod";
 import { MODEL_FAILED } from "@/lib/assistant/copy";
 import { stripForModel } from "@/lib/assistant/privacy";
 import { JOB_STATUSES, jobEcho, summaryLine, toPublicJob, toPublicNote, type Job } from "@/lib/jobs/domain";
+import { presentAction } from "@/lib/jobs/name-scrub";
 import { canonicalJobRef } from "@/lib/jobs/ref";
 import { RepositoryError } from "@/lib/jobs/repository-error";
 import { reasonLine } from "@/lib/bench/reason";
-import type { FindQuery, JobMatch, JobRepository } from "@/lib/jobs/repository";
+import type { JobRepository } from "@/lib/jobs/repository";
 import { parseFindJobs } from "@/lib/jobs/validate";
 
 export type AssistantToolContext = {
@@ -16,33 +17,6 @@ export type AssistantToolContext = {
   phones: Set<string>;
   reasons: string[];
 };
-
-function includesFold(haystack: string | null | undefined, needle: string): boolean {
-  if (!haystack) return false;
-  return haystack.toLocaleLowerCase("en-GB").includes(needle.toLocaleLowerCase("en-GB"));
-}
-
-/**
- * Assistant-only search. The Action API find_jobs still matches the device label only.
- * A device keyword here also hits the reported fault and the latest note.
- */
-async function findJobsForAsk(repo: JobRepository, query: FindQuery): Promise<JobMatch[]> {
-  const direct = await repo.findJobs(query);
-  const needle = query.device?.trim() ?? "";
-  if (!needle) return direct;
-  const poolQuery: FindQuery = {};
-  if (query.status) poolQuery.status = query.status;
-  if (query.customerName) poolQuery.customerName = query.customerName;
-  if (query.ref) poolQuery.ref = query.ref;
-  const pool = await repo.findJobs(poolQuery);
-  const seen = new Set(direct.map((match) => match.job.ref));
-  const extra = pool.filter(
-    (match) =>
-      !seen.has(match.job.ref) &&
-      (includesFold(match.job.reportedFault, needle) || includesFold(match.lastNoteSummary, needle)),
-  );
-  return [...direct, ...extra].slice(0, 50);
-}
 
 function remember(ctx: AssistantToolContext, job: Job | null | undefined) {
   if (job?.phone) ctx.phones.add(job.phone);
@@ -87,7 +61,7 @@ export function createAssistantTools(ctx: AssistantToolContext): ToolSet {
   return {
     get_job: tool({
       description:
-        "Read one job, its notes, and photo captions. No photo files and no phone number are returned.",
+        "Read one job, its notes (each note has an id), and photo captions. No customer name, no phone number, and no photo files are returned.",
       inputSchema: z.object({ ref: refField }),
       execute: async (input) => {
         try {
@@ -98,14 +72,17 @@ export function createAssistantTools(ctx: AssistantToolContext): ToolSet {
           if (!job) return reject(ctx, "No job with that ref.");
           const notes = await ctx.repo.listNotes(job.id);
           const photos = await ctx.repo.listPhotoCaptions(job.id);
-          return forModel(ctx, {
-            ok: true,
-            ...jobEcho(job),
-            job: toPublicJob(job),
-            notes: notes.map(toPublicNote),
-            photo_count: photos.count,
-            photo_captions: photos.captions,
-          });
+          return forModel(
+            ctx,
+            presentAction(job, {
+              ok: true,
+              ...jobEcho(job),
+              job: toPublicJob(job),
+              notes: notes.map(toPublicNote),
+              photo_count: photos.count,
+              photo_captions: photos.captions,
+            }),
+          );
         } catch (error) {
           return failed(ctx, error);
         }
@@ -114,9 +91,8 @@ export function createAssistantTools(ctx: AssistantToolContext): ToolSet {
 
     find_jobs: tool({
       description:
-        "Search jobs by customer name, device, ref, or status. A device keyword also matches the reported fault and the latest note, so the same brand or the same fault on other models is included. If status is omitted, only active jobs come back. Call again with status collected, and with status closed_no_repair, for past jobs. Do not ask permission before searching. No phone numbers are returned.",
+        "List recent open jobs, or search by device, reported fault, note text, ref, or status. Omit every field to list open jobs, newest first. A device keyword matches the device, the fault, and notes. Call again with status collected, and with status closed_no_repair, for past jobs. Do not search by customer name. Do not ask permission before searching. No customer names and no phone numbers are returned.",
       inputSchema: z.object({
-        customer_name: z.string().optional(),
         device: z.string().optional(),
         ref: z.string().optional(),
         status: z.enum(FIND_STATUSES).optional(),
@@ -124,32 +100,32 @@ export function createAssistantTools(ctx: AssistantToolContext): ToolSet {
       execute: async (input) => {
         try {
           const url = new URL("https://jobs.local/api/actions/jobs");
-          if (input.customer_name) url.searchParams.set("customer_name", input.customer_name);
           if (input.device) url.searchParams.set("device", input.device);
           if (input.ref) url.searchParams.set("ref", input.ref);
           if (input.status) url.searchParams.set("status", input.status);
           const parsed = parseFindJobs(url);
           if (!parsed.ok) return reject(ctx, parsed.message);
-          const matches = await findJobsForAsk(ctx.repo, parsed.value);
+          const matches = await ctx.repo.findJobs(parsed.value);
           for (const match of matches) remember(ctx, match.job);
           return forModel(ctx, {
             ok: true,
-            jobs: matches.map(({ job, lastNoteSummary }) => ({
-              ref: job.ref,
-              customer_name: job.customerName,
-              device_label: job.deviceLabel,
-              status: job.status,
-              next_move: job.nextMove,
-              last_note_summary: lastNoteSummary,
-              summary_line: summaryLine({
+            jobs: matches.map(({ job, lastNoteSummary }) =>
+              presentAction(job, {
                 ref: job.ref,
-                customerName: job.customerName,
-                deviceLabel: job.deviceLabel,
+                device_label: job.deviceLabel,
+                reported_fault: job.reportedFault,
                 status: job.status,
-                nextMove: job.nextMove,
-                lastNoteSummary,
+                next_move: job.nextMove,
+                last_note_summary: lastNoteSummary,
+                summary_line: summaryLine({
+                  ref: job.ref,
+                  deviceLabel: job.deviceLabel,
+                  status: job.status,
+                  nextMove: job.nextMove,
+                  lastNoteSummary,
+                }),
               }),
-            })),
+            ),
           });
         } catch (error) {
           return failed(ctx, error);

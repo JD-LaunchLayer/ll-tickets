@@ -6,7 +6,7 @@ import { Sheet } from "@/app/bench/sheet";
 import { UndoToast } from "@/app/bench/undo-toast";
 import { idleForm } from "@/lib/bench/form-state";
 import { isArchiveStatus } from "@/lib/bench/swipe";
-import { STATUS_LABELS, type JobStatus } from "@/lib/jobs/domain";
+import { displayCustomerName, STATUS_LABELS, type JobStatus } from "@/lib/jobs/domain";
 
 export type ArchiveTarget = {
   ref: string;
@@ -142,7 +142,7 @@ export function ArchiveSheet({
       {target ? (
         <div className="archive-sheet">
           <p className="archive-sub">
-            {target.customerName}
+            {displayCustomerName(target.customerName)}
             {" · "}
             {target.deviceLabel}
           </p>

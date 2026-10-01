@@ -1,6 +1,8 @@
 import type { NoteStatusMove } from "@/lib/bench/auto-status";
 import { addBenchNote, type BenchResult } from "@/lib/bench/notes";
 import { NOTE_TAGS, type Job, type Note, type NoteTag } from "@/lib/jobs/domain";
+import { scrubStoredCustomerName } from "@/lib/jobs/name-scrub";
+import { canonicalJobRef } from "@/lib/jobs/ref";
 import type { JobRepository } from "@/lib/jobs/repository";
 
 /** Finding, unless a hypothesis tag is added to the note enum later. */
@@ -28,19 +30,24 @@ export async function saveAssistantFinding(
     clientRequestId: string;
     now: Date;
   },
-): Promise<BenchResult<{ job: Job; note: Note; statusMove: NoteStatusMove | null }>> {
+): Promise<BenchResult<{ job: Job; note: Note; statusMove: NoteStatusMove | null; nameReplaced: boolean }>> {
   if (!input.confirmed) {
     return { ok: false, message: "Nothing was saved." };
   }
   if (!isSaveTag(input.tag)) {
     return { ok: false, message: "That tag is not on the record." };
   }
-  return addBenchNote(repo, {
+  const ref = canonicalJobRef(input.ref);
+  const job = ref ? await repo.getJobByRef(ref) : null;
+  const scrubbed = job ? scrubStoredCustomerName(input.text, job.customerName) : { text: input.text, replaced: false };
+  const filed = await addBenchNote(repo, {
     ref: input.ref,
-    text: input.text,
+    text: scrubbed.text,
     tag: input.tag,
     nextMove: null,
     clientRequestId: input.clientRequestId,
     now: input.now,
   });
+  if (!filed.ok) return filed;
+  return { ok: true, value: { ...filed.value, nameReplaced: scrubbed.replaced } };
 }

@@ -69,8 +69,10 @@ export type NewPhoto = {
   caption: string | null;
 };
 
+/** Newest matches returned by find. The Action API list uses the same cap. */
+export const FIND_LIMIT = 50;
+
 export type FindQuery = {
-  customerName?: string;
   device?: string;
   ref?: string;
   status?: JobStatus | "active";

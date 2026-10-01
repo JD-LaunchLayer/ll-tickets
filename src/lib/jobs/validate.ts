@@ -3,6 +3,7 @@ import {
   BACKUP_POSITIONS,
   JOB_STATUSES,
   NOTE_TAGS,
+  UNRECORDED_CUSTOMER,
   type BackupPosition,
   type JobStatus,
   type NoteTag,
@@ -18,7 +19,15 @@ export type ParseOk<T> = { ok: true; value: T };
 const CLIENT_REQUEST_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,199}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const BANNED_KEY = /(phone|mobile|password|passwd)/i;
+/** Phone, password, and customer-name keys. The value is never echoed. */
+const IDENTITY_KEY = /(phone|mobile|password|passwd|(^|_)(customer_?name|full_name|customer|name)$)/i;
+
+export const IDENTITY_REFUSAL =
+  "The Action API never accepts a phone number, a customer name, or a password.";
+
+export function isIdentityField(key: string): boolean {
+  return IDENTITY_KEY.test(key);
+}
 
 export type CreateJobInput = {
   clientRequestId: string;
@@ -72,7 +81,6 @@ export type CollectionInput = {
 };
 
 export type FindJobsInput = {
-  customerName?: string;
   device?: string;
   ref?: string;
   status?: JobStatus | "active";
@@ -113,11 +121,8 @@ export async function readJsonObject(
   }
   const body = parsed as Record<string, unknown>;
   for (const key of Object.keys(body)) {
-    if (BANNED_KEY.test(key)) {
-      return {
-        ok: false,
-        message: "The Action API never accepts a phone number or a password.",
-      };
+    if (isIdentityField(key)) {
+      return { ok: false, message: IDENTITY_REFUSAL };
     }
   }
   return { ok: true, value: body };
@@ -301,10 +306,12 @@ function parseTag(body: Record<string, unknown>, required: boolean): ParseOk<Not
 export function parseCreateJob(
   body: Record<string, unknown>,
   now: Date,
+  source: "bench" | "action" = "bench",
 ): ParseOk<CreateJobInput> | ParseFail {
+  const action = source === "action";
   const unknown = unknownField(body, [
     "client_request_id",
-    "customer_name",
+    ...(action ? [] : ["customer_name"]),
     "device_label",
     "reported_fault",
     "next_move",
@@ -319,8 +326,12 @@ export function parseCreateJob(
 
   const clientRequestId = requireId(body);
   if (!clientRequestId.ok) return clientRequestId;
-  const customerName = requiredText(body.customer_name, "customer_name", 120);
-  if (!customerName.ok) return customerName;
+  let customerName = UNRECORDED_CUSTOMER;
+  if (!action) {
+    const parsedName = requiredText(body.customer_name, "customer_name", 120);
+    if (!parsedName.ok) return parsedName;
+    customerName = parsedName.value;
+  }
   const deviceLabel = requiredText(body.device_label, "device_label", 160);
   if (!deviceLabel.ok) return deviceLabel;
   const reportedFault = requiredText(body.reported_fault, "reported_fault", 2000);
@@ -343,7 +354,7 @@ export function parseCreateJob(
     ok: true,
     value: {
       clientRequestId: clientRequestId.value,
-      customerName: customerName.value,
+      customerName,
       deviceLabel: deviceLabel.value,
       reportedFault: reportedFault.value,
       nextMove: nextMove.value,
@@ -546,16 +557,15 @@ export function parseCollection(body: Record<string, unknown>): ParseOk<Collecti
 }
 
 export function parseFindJobs(url: URL): ParseOk<FindJobsInput> | ParseFail {
-  const allowed = new Set(["customer_name", "device", "ref", "status"]);
+  const allowed = new Set(["device", "ref", "status"]);
   for (const key of url.searchParams.keys()) {
+    if (isIdentityField(key)) return { ok: false, message: IDENTITY_REFUSAL };
     if (!allowed.has(key)) return { ok: false, message: `Unknown query field: ${key}.` };
   }
   const value: FindJobsInput = {};
-  const customer = url.searchParams.get("customer_name")?.trim();
   const device = url.searchParams.get("device")?.trim();
   const ref = url.searchParams.get("ref")?.trim();
   const status = url.searchParams.get("status")?.trim();
-  if (customer) value.customerName = customer;
   if (device) value.device = device;
   if (ref) {
     const canonical = canonicalJobRef(ref);

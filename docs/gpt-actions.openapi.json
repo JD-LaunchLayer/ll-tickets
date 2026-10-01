@@ -3,7 +3,7 @@
   "info": {
     "title": "LaunchLayer jobs",
     "version": "1.0.0",
-    "description": "Record workshop jobs for LaunchLayer. The GPT sees customer name and device only. It must never send or receive a phone number, never see a photo file, and never message a customer. Confirm with Jordan before create_job, set_status, and create_collection_event."
+    "description": "Record workshop jobs for LaunchLayer. The GPT sees the ref, device, fault, status, notes, and price basis. Never send or receive a customer name, a phone number, or a photo. Confirm before create_job, set_status, and create_collection_event."
   },
   "servers": [
     {
@@ -17,7 +17,7 @@
       "post": {
         "operationId": "create_job",
         "summary": "Record a new job",
-        "description": "Use only after Jordan has confirmed a new job should be recorded. Send customer name, device, the reported fault, and a one-line next_move. Do not send a phone number or a password. If you send price_gbp without price_basis, it is stored as an estimate.",
+        "description": "Use only after Jordan has confirmed a new job. Send the device, the reported fault, and a one-line next_move. Do not send a customer name, a phone number, or a password. He adds the customer on the phone.",
         "requestBody": {
           "required": true,
           "content": {
@@ -44,20 +44,13 @@
       "get": {
         "operationId": "find_jobs",
         "summary": "Find jobs",
-        "description": "Decide which job Jordan means, or list work in progress. Filter by customer_name, device, ref, or status. Omit status for active jobs only (not collected or closed_no_repair). Read each summary_line before choosing. Phone number is never returned.",
+        "description": "List recent open jobs, newest first, or search. With no filters, only active jobs come back (not collected or closed_no_repair), capped at 50. device matches the device, the fault, or a note. Also filter by ref or status.",
         "parameters": [
-          {
-            "name": "customer_name",
-            "in": "query",
-            "required": false,
-            "description": "Case-insensitive part of the customer name.",
-            "schema": { "type": "string" }
-          },
           {
             "name": "device",
             "in": "query",
             "required": false,
-            "description": "Case-insensitive part of the device label.",
+            "description": "Matches the device label, the reported fault, or a note. Not a customer name.",
             "schema": { "type": "string" }
           },
           {
@@ -71,7 +64,7 @@
             "name": "status",
             "in": "query",
             "required": false,
-            "description": "A status value, or active. Omit for active jobs.",
+            "description": "A status value, or active. ready means Ready to collect. Omit for active jobs.",
             "schema": { "type": "string" }
           }
         ],
@@ -93,7 +86,7 @@
       "get": {
         "operationId": "get_job",
         "summary": "Read one job",
-        "description": "Use before talking about a job you already identified. Notes are newest first. Photos are not returned: only photo_count and photo_captions. The phone number is never returned.",
+        "description": "Read one job before you talk about it. Notes are newest first and each note includes its id. Photos are not returned: only photo_count and photo_captions. No customer name and no phone number.",
         "parameters": [
           {
             "name": "ref",
@@ -122,7 +115,7 @@
       "post": {
         "operationId": "add_note",
         "summary": "File a note",
-        "description": "Use to file what Jordan just said about an existing job. text is his words, lightly tidied. summary is about 100 characters. tag may be omitted. This does not change status and does not create a calendar entry. You may also send next_move when the next step changed.",
+        "description": "File what Jordan just said about an existing job. text is his words, lightly tidied. summary is about 100 characters. tag may be omitted. This does not change status. A customer name in the wording is saved as \"the customer\".",
         "requestBody": {
           "required": true,
           "content": {
@@ -151,7 +144,7 @@
       "post": {
         "operationId": "edit_note",
         "summary": "Correct a note",
-        "description": "Use when Jordan corrects a note that was already filed. Send the job ref and the note id. The previous wording is kept. Confirm the ref before you call this.",
+        "description": "Correct the text and/or tag of a note already filed. Send the job ref and the note id from get_job. This does not change the job status. A customer name in the wording is saved as \"the customer\".",
         "requestBody": {
           "required": true,
           "content": {
@@ -180,7 +173,7 @@
       "post": {
         "operationId": "set_status",
         "summary": "Set status or price",
-        "description": "Statuses: new, diagnosing, waiting_on_parts, waiting_on_customer, ready, collected, closed_no_repair. price_basis estimate is not binding; quote is an agreed fixed price (server sets price_agreed_at if omitted). Same status may update other fields.",
+        "description": "Statuses: new, diagnosing, waiting_on_parts, waiting_on_customer, ready (Ready to collect), collected, closed_no_repair. price_basis estimate is not binding; quote is an agreed fixed price (server sets price_agreed_at if omitted).",
         "requestBody": {
           "required": true,
           "content": {
@@ -247,7 +240,7 @@
     },
     "responses": {
       "Error": {
-        "description": "The action was rejected. When a job was identified, ref, customer_name, and device_label are included.",
+        "description": "The action was rejected. When a job was identified, ref and device_label are included. The customer name is never included.",
         "content": {
           "application/json": {
             "schema": { "$ref": "#/components/schemas/ErrorResponse" }
@@ -259,10 +252,9 @@
       "CreateJobRequest": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["client_request_id", "customer_name", "device_label", "reported_fault", "next_move"],
+        "required": ["client_request_id", "device_label", "reported_fault", "next_move"],
         "properties": {
           "client_request_id": { "type": "string", "description": "Unique for this write. Reuse it only to retry the identical call." },
-          "customer_name": { "type": "string" },
           "device_label": { "type": "string" },
           "reported_fault": { "type": "string" },
           "next_move": { "type": "string", "description": "One line: what happens next." },
@@ -323,6 +315,7 @@
           "ref": { "type": "string" },
           "status": {
             "type": "string",
+            "description": "ready means Ready to collect.",
             "enum": ["new", "diagnosing", "waiting_on_parts", "waiting_on_customer", "ready", "collected", "closed_no_repair"]
           },
           "next_move": { "type": "string" },
@@ -350,10 +343,9 @@
       "Job": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["ref", "customer_name", "device_label", "reported_fault", "status", "next_move"],
+        "required": ["ref", "device_label", "reported_fault", "status", "next_move"],
         "properties": {
           "ref": { "type": "string" },
-          "customer_name": { "type": "string" },
           "device_label": { "type": "string" },
           "reported_fault": { "type": "string" },
           "status": { "type": "string" },
@@ -389,21 +381,20 @@
       "NoteResponse": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["ref", "customer_name", "device_label", "note"],
+        "required": ["ref", "device_label", "note"],
         "properties": {
           "ref": { "type": "string" },
-          "customer_name": { "type": "string" },
           "device_label": { "type": "string" },
-          "note": { "$ref": "#/components/schemas/Note" }
+          "note": { "$ref": "#/components/schemas/Note" },
+          "notice": { "type": "string", "description": "Set when a stored customer name in the note was saved as \"the customer\"." }
         }
       },
       "GetJobResponse": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["ref", "customer_name", "device_label", "job", "notes", "photo_count", "photo_captions"],
+        "required": ["ref", "device_label", "job", "notes", "photo_count", "photo_captions"],
         "properties": {
           "ref": { "type": "string" },
-          "customer_name": { "type": "string" },
           "device_label": { "type": "string" },
           "job": { "$ref": "#/components/schemas/Job" },
           "notes": { "type": "array", "items": { "$ref": "#/components/schemas/Note" } },
@@ -414,15 +405,15 @@
       "FindHit": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["ref", "customer_name", "device_label", "status", "next_move", "summary_line"],
+        "required": ["ref", "device_label", "reported_fault", "status", "next_move", "summary_line"],
         "properties": {
           "ref": { "type": "string" },
-          "customer_name": { "type": "string" },
           "device_label": { "type": "string" },
+          "reported_fault": { "type": "string" },
           "status": { "type": "string" },
           "next_move": { "type": "string" },
           "last_note_summary": { "type": ["string", "null"] },
-          "summary_line": { "type": "string", "description": "One line: ref, customer, device, status, next move, last note summary." }
+          "summary_line": { "type": "string", "description": "One line: ref, device, status, next move, last note summary." }
         }
       },
       "FindJobsResponse": {
@@ -434,7 +425,6 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "customer_name": { "type": ["string", "null"] },
               "device": { "type": ["string", "null"] },
               "ref": { "type": ["string", "null"] },
               "status": { "type": "string" }
@@ -446,10 +436,9 @@
       "CollectionResponse": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["ref", "customer_name", "device_label", "collection_at", "calendar_event_id", "calendar"],
+        "required": ["ref", "device_label", "collection_at", "calendar_event_id", "calendar"],
         "properties": {
           "ref": { "type": "string" },
-          "customer_name": { "type": "string" },
           "device_label": { "type": "string" },
           "collection_at": { "type": "string" },
           "calendar_event_id": { "type": "string" },
@@ -471,7 +460,6 @@
             }
           },
           "ref": { "type": "string" },
-          "customer_name": { "type": "string" },
           "device_label": { "type": "string" }
         }
       }

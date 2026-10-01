@@ -10,24 +10,23 @@ import {
   type Photo,
 } from "@/lib/jobs/domain";
 import { generateJobRef } from "@/lib/jobs/ref";
-import type {
-  AuditEntry,
-  FindQuery,
-  IdempotencyClaim,
-  IdempotencyRecord,
-  JobMatch,
-  JobPatch,
-  JobRepository,
-  NewJob,
-  NewNote,
-  NewPhoto,
-  NotePatch,
+import {
+  FIND_LIMIT,
+  type AuditEntry,
+  type FindQuery,
+  type IdempotencyClaim,
+  type IdempotencyRecord,
+  type JobMatch,
+  type JobPatch,
+  type JobRepository,
+  type NewJob,
+  type NewNote,
+  type NewPhoto,
+  type NotePatch,
 } from "@/lib/jobs/repository";
 import { reportRepositoryFailure, RepositoryError } from "@/lib/jobs/repository-error";
 
 export { RepositoryError };
-
-const FIND_LIMIT = 50;
 
 type Client = SupabaseClient<Database>;
 type JobRow = Database["public"]["Tables"]["jobs"]["Row"];
@@ -137,6 +136,10 @@ function searchNeedle(value: string): string {
   return value.replace(/[%_\\]/g, "").trim();
 }
 
+function includesFold(haystack: string, needle: string): boolean {
+  return haystack.toLocaleLowerCase("en-GB").includes(needle.toLocaleLowerCase("en-GB"));
+}
+
 export class SupabaseJobRepository implements JobRepository {
   constructor(private readonly client: Client) {}
 
@@ -217,33 +220,48 @@ export class SupabaseJobRepository implements JobRepository {
   async findJobs(query: FindQuery): Promise<JobMatch[]> {
     let request = this.client.from("jobs").select("*");
     if (query.ref) request = request.eq("ref", query.ref);
-    const customer = query.customerName ? searchNeedle(query.customerName) : "";
     const device = query.device ? searchNeedle(query.device) : "";
-    if (customer) request = request.ilike("customer_name", `%${customer}%`);
-    if (device) request = request.ilike("device_label", `%${device}%`);
     const status = query.status ?? "active";
     if (status === "active") {
       request = request.not("status", "in", "(collected,closed_no_repair)");
     } else {
       request = request.eq("status", status);
     }
-    const { data, error } = await request.order("updated_at", { ascending: false }).limit(FIND_LIMIT);
+    const ordered = request.order("updated_at", { ascending: false });
+    const limited = device ? ordered : ordered.limit(FIND_LIMIT);
+    const { data, error } = await limited;
     if (error) reportRepositoryFailure("findJobs", "Could not search jobs.", error);
-    const jobs = (data ?? []).map(rowToJob).filter((job) =>
+    let jobs = (data ?? []).map(rowToJob).filter((job) =>
       status === "active" ? isActiveStatus(job.status) : job.status === status,
     );
     if (jobs.length === 0) return [];
     const { data: notes, error: notesError } = await this.client
       .from("notes")
-      .select("job_id, summary, created_at")
+      .select("job_id, text, summary, created_at")
       .in(
         "job_id",
         jobs.map((job) => job.id),
       )
       .order("created_at", { ascending: false });
     if (notesError) reportRepositoryFailure("findJobs", "Could not read note summaries.", notesError);
+    const noteRows = notes ?? [];
+    if (device) {
+      const noteIds = new Set(
+        noteRows
+          .filter((note) => includesFold(note.text, device) || includesFold(note.summary, device))
+          .map((note) => note.job_id),
+      );
+      jobs = jobs
+        .filter(
+          (job) =>
+            includesFold(job.deviceLabel, device) ||
+            includesFold(job.reportedFault, device) ||
+            noteIds.has(job.id),
+        )
+        .slice(0, FIND_LIMIT);
+    }
     const summaries = new Map<string, string>();
-    for (const note of notes ?? []) {
+    for (const note of noteRows) {
       if (!summaries.has(note.job_id)) summaries.set(note.job_id, note.summary);
     }
     return jobs.map((job) => ({ job, lastNoteSummary: summaries.get(job.id) ?? null }));
