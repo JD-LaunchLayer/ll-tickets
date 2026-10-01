@@ -104,6 +104,7 @@ async function read(response: Response) {
   const body = JSON.parse(text) as Record<string, unknown>;
   const keys = collectKeys(body);
   expect(keys.has("phone")).toBe(false);
+  expect(keys.has("customer_name")).toBe(false);
   expect(keys.has("storage_path")).toBe(false);
   expect(keys.has("password")).toBe(false);
   return body;
@@ -111,7 +112,6 @@ async function read(response: Response) {
 
 const createBody = {
   client_request_id: "create-job-0001",
-  customer_name: "Ada Lovelace",
   device_label: "MacBook Pro 2019",
   reported_fault: "No power",
   next_move: "Check the charger",
@@ -137,7 +137,7 @@ describe("action API", () => {
     const { runtime, repo } = runtimeFor();
     const missing = await post(runtime, "create_job", {
       client_request_id: "create-invalid-1",
-      customer_name: "Ada Lovelace",
+      device_label: "MacBook Pro 2019",
     });
     expect(missing.status).toBe(400);
     expect(repo.jobs).toHaveLength(0);
@@ -174,19 +174,21 @@ describe("action API", () => {
     expect(estimate.status).toBe(200);
     const estimateBody = await read(estimate);
     expect(estimateBody).toMatchObject({
-      customer_name: "Ada Lovelace",
       device_label: "MacBook Pro 2019",
       price_gbp: 49,
       price_basis: "estimate",
       price_agreed_at: null,
       status: "new",
     });
+    expect(estimateBody).not.toHaveProperty("customer_name");
+    expect(estimateBody).not.toHaveProperty("phone");
+    expect(repo.jobs[0]?.customerName).toBe("Not recorded");
+    expect(repo.jobs[0]?.phone).toBeNull();
     expect(String(estimateBody.ref)).toMatch(/^LL-[A-Z2-9]{4}$/);
 
     const inconsistent = await post(runtime, "create_job", {
       ...createBody,
       client_request_id: "create-bad-quote-1",
-      customer_name: "Grace Hopper",
       price_gbp: 80,
       price_basis: "estimate",
       price_agreed_at: NOW,
@@ -196,7 +198,6 @@ describe("action API", () => {
     const quote = await post(runtime, "create_job", {
       ...createBody,
       client_request_id: "create-quote-0001",
-      customer_name: "Grace Hopper",
       device_label: "Dell Latitude",
       price_gbp: 120,
       price_basis: "quote",
@@ -225,7 +226,7 @@ describe("action API", () => {
 
     const conflict = await post(runtime, "create_job", {
       ...createBody,
-      customer_name: "Someone Else",
+      device_label: "Someone Else",
     });
     expect(conflict.status).toBe(409);
     expect(repo.jobs).toHaveLength(1);
@@ -233,12 +234,11 @@ describe("action API", () => {
 
     const invalid = await post(runtime, "create_job", {
       client_request_id: "create-retry-0001",
-      customer_name: "Katherine Johnson",
+      device_label: "ThinkPad",
     });
     expect(invalid.status).toBe(400);
     const retried = await post(runtime, "create_job", {
       client_request_id: "create-retry-0001",
-      customer_name: "Katherine Johnson",
       device_label: "ThinkPad",
       reported_fault: "Slow",
       next_move: "Run a diagnostic",
@@ -279,9 +279,9 @@ describe("action API", () => {
     );
     expect(noted).toMatchObject({
       ref,
-      customer_name: "Ada Lovelace",
       device_label: "MacBook Pro 2019",
     });
+    expect(noted).not.toHaveProperty("customer_name");
     const note = noted.note as { id: string; tag: null };
     expect(note.tag).toBeNull();
     expect(repo.jobs[0]?.priceGbp).toBeNull();
@@ -308,7 +308,8 @@ describe("action API", () => {
         next_move: "Reseat the fan",
       }),
     );
-    expect(moved).toMatchObject({ ref, customer_name: "Ada Lovelace", device_label: "MacBook Pro 2019" });
+    expect(moved).toMatchObject({ ref, device_label: "MacBook Pro 2019" });
+    expect(moved).not.toHaveProperty("customer_name");
     expect(repo.jobs[0]?.nextMove).toBe("Reseat the fan");
 
     const edited = await read(
@@ -320,7 +321,9 @@ describe("action API", () => {
         summary: "Fan noisy",
       }),
     );
-    expect(edited).toMatchObject({ ref, customer_name: "Ada Lovelace" });
+    expect(edited).toMatchObject({ ref, device_label: "MacBook Pro 2019" });
+    expect(edited).not.toHaveProperty("customer_name");
+    expect(repo.jobs[0]?.status).toBe("new");
     const revisions = await repo.listRevisions(note.id);
     expect(revisions.map((revision) => revision.text)).toContain(
       "Fan is seized and the serial is C02ABC123.",
@@ -335,12 +338,13 @@ describe("action API", () => {
     expect(notes.map((item) => item.summary)).toEqual(["Charger is fine", "Fan noisy"]);
 
     const found = await read(
-      await get(runtime, "find_jobs", "/api/actions/jobs?customer_name=ada&device=macbook"),
+      await get(runtime, "find_jobs", "/api/actions/jobs?device=macbook"),
     );
     const hits = found.jobs as Array<{ summary_line: string; ref: string }>;
     expect(hits).toHaveLength(1);
     expect(hits[0]?.ref).toBe(ref);
-    expect(hits[0]?.summary_line).toContain("Ada Lovelace");
+    expect(hits[0]?.summary_line).not.toContain("Ada Lovelace");
+    expect(hits[0]?.summary_line).not.toContain("Not recorded");
     expect(hits[0]?.summary_line).toContain("MacBook Pro 2019");
     expect(hits[0]?.summary_line).toContain("Reseat the fan");
     expect(hits[0]?.summary_line).toContain("Charger is fine");
@@ -391,7 +395,6 @@ describe("action API", () => {
     );
     expect(booked).toMatchObject({
       ref,
-      customer_name: "Ada Lovelace",
       device_label: "MacBook Pro 2019",
       calendar: "created",
       calendar_event_id: "evt_1",
@@ -423,7 +426,6 @@ describe("action API", () => {
     await post(runtime, "create_job", {
       ...createBody,
       client_request_id: "create-job-0002",
-      customer_name: "Alan Turing",
       device_label: "Custom tower",
       reported_fault: "No display",
       next_move: "Test the RAM",
@@ -435,9 +437,8 @@ describe("action API", () => {
     });
 
     const byDevice = await read(await get(runtime, "find_jobs", "/api/actions/jobs?device=tower"));
-    expect(byDevice.jobs).toMatchObject([
-      { customer_name: "Alan Turing", device_label: "Custom tower", status: "new" },
-    ]);
+    expect(byDevice.jobs).toMatchObject([{ device_label: "Custom tower", status: "new" }]);
+    expect(JSON.stringify(byDevice)).not.toContain("customer_name");
 
     const byRef = await read(
       await get(runtime, "find_jobs", `/api/actions/jobs?ref=${first.ref}&status=closed_no_repair`),
@@ -445,8 +446,11 @@ describe("action API", () => {
     expect(byRef.jobs).toHaveLength(1);
     expect((byRef.jobs as Array<{ ref: string }>)[0]?.ref).toBe(first.ref);
 
-    const active = await read(await get(runtime, "find_jobs", "/api/actions/jobs?customer_name=Ada"));
-    expect(active.jobs).toEqual([]);
+    const refused = await get(runtime, "find_jobs", "/api/actions/jobs?customer_name=Ada");
+    expect(refused.status).toBe(400);
+    const refusedText = await refused.text();
+    expect(refusedText).not.toContain("Ada");
+    expect(refusedText).toContain("customer name");
 
     const badStatus = await get(runtime, "find_jobs", "/api/actions/jobs?status=open");
     expect(badStatus.status).toBe(400);
@@ -550,7 +554,7 @@ describe("action API", () => {
     const generic = { error: { code: "internal_error", message: "The action failed." } };
 
     await assertNoPostgres(await post(runtime, "create_job", createBody), generic);
-    await assertNoPostgres(await get(runtime, "find_jobs", "/api/actions/jobs?customer_name=Ada"), generic);
+    await assertNoPostgres(await get(runtime, "find_jobs", "/api/actions/jobs"), generic);
     await assertNoPostgres(await get(runtime, "get_job", "/api/actions/jobs/LL-4K7M", "LL-4K7M"), generic);
     await assertNoPostgres(
       await post(runtime, "add_note", {
@@ -592,7 +596,6 @@ describe("action API", () => {
       }),
       {
         ref: created.ref,
-        customer_name: "Ada Lovelace",
         device_label: "MacBook Pro 2019",
         error: { code: "internal_error", message: "The collection time could not be saved." },
       },

@@ -449,6 +449,8 @@ describe("action responses", () => {
       const body = JSON.parse(text) as unknown;
       const keys = collectKeys(body);
       expect(keys.has("phone")).toBe(false);
+      expect(keys.has("customer_name")).toBe(false);
+      expect(text).not.toContain("Ada Lovelace");
       expect(keys.has("storage_path")).toBe(false);
       expect(keys.has("storagePath")).toBe(false);
       return body as Record<string, unknown>;
@@ -485,7 +487,7 @@ describe("action responses", () => {
 
     const found = await call(
       await handleAction(
-        new Request("https://jobs.example/api/actions/jobs?customer_name=Ada", {
+        new Request("https://jobs.example/api/actions/jobs?device=macbook", {
           headers: { authorization: `Bearer ${API_KEY}`, "x-forwarded-for": "203.0.113.20" },
         }),
         "find_jobs",
@@ -532,15 +534,16 @@ describe("action responses", () => {
     const other = await call(
       await post("create_job", {
         client_request_id: "bench-action-create-1",
-        customer_name: "Alan Turing",
         device_label: "Custom tower",
         reported_fault: "No display",
         next_move: "Test the RAM",
       }),
     );
     expect(other).not.toHaveProperty("phone");
+    expect(other).not.toHaveProperty("customer_name");
     const otherRef = String(other.ref);
     expect(repo.jobs.find((job) => job.ref === otherRef)?.phone).toBeNull();
+    expect(repo.jobs.find((job) => job.ref === otherRef)?.customerName).toBe("Not recorded");
     expect(repo.jobs.find((job) => job.ref === created.value.ref)?.phone).toBe(PHONE);
 
     const captions = await repo.listPhotoCaptions(created.value.id);

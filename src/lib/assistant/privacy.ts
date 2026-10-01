@@ -1,4 +1,4 @@
-const SECRET_KEY = /phone|mobile|password|passwd|passphrase|\bpin\b/i;
+const SECRET_KEY = /phone|mobile|password|passwd|passphrase|\bpin\b|customer_?name/i;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

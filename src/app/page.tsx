@@ -10,14 +10,14 @@ import { listBenchJobs, type BenchListRow } from "@/lib/bench/jobs";
 import { jobListPanel } from "@/lib/bench/list-panel";
 import { buildListQuery, jobPath, listPath } from "@/lib/bench/list-place";
 import { displayNextMove } from "@/lib/bench/now-next";
-import { STATUS_LABELS } from "@/lib/jobs/domain";
+import { displayCustomerName, STATUS_LABELS } from "@/lib/jobs/domain";
 
 export const dynamic = "force-dynamic";
 
 const FILTERS: Array<{ id: BenchView; label: string; aria: string }> = [
   { id: "bench", label: "On bench", aria: "On the bench" },
   { id: "parts", label: "Parts", aria: "Waiting on parts" },
-  { id: "ready", label: "Ready", aria: "Ready" },
+  { id: "ready", label: STATUS_LABELS.ready, aria: "Ready to collect" },
 ];
 
 function listHref(view: BenchView, finished: boolean, q: string): string {
@@ -39,7 +39,7 @@ function JobCard({ row, from, next }: { row: BenchListRow; from: string; next: s
   return (
     <RememberListLink href={jobPath(row.ref, from)} className="job-card">
       <div className="job-card-top">
-        <p className="job-customer">{row.customerName}</p>
+        <p className="job-customer">{displayCustomerName(row.customerName)}</p>
         <span className={`status-pill status-${row.status}`}>{STATUS_LABELS[row.status]}</span>
       </div>
       <p className="job-device-line">

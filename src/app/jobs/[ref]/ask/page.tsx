@@ -4,6 +4,7 @@ import { BenchShell } from "@/app/bench/shell";
 import { isAssistantConfigured } from "@/lib/assistant/model";
 import { ownerContext } from "@/lib/bench/context";
 import { loadBenchJob } from "@/lib/bench/jobs";
+import { displayCustomerName } from "@/lib/jobs/domain";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function JobAskPage({ params }: { params: Promise<{ ref: st
       titlePlacement="bar"
       barTitleSize="md"
       backHref={`/jobs/${job.ref}`}
-      barSubtitle={`${job.customerName} · ${job.deviceLabel}`}
+      barSubtitle={`${displayCustomerName(job.customerName)} · ${job.deviceLabel}`}
       barAction={<AskClear scopeRef={job.ref} />}
       fill
     >

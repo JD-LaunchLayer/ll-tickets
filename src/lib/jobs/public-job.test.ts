@@ -33,6 +33,8 @@ describe("public job", () => {
     expect(job.priceGbp).toBe(49.5);
     const published = toPublicJob(job);
     expect(published).not.toHaveProperty("phone");
+    expect(published).not.toHaveProperty("customer_name");
     expect(JSON.stringify(published)).not.toContain("07700900123");
+    expect(JSON.stringify(published)).not.toContain("Ada Lovelace");
   });
 });

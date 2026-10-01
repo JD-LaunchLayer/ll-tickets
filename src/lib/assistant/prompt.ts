@@ -1,5 +1,6 @@
 import { formatPence, moneyDisplayText, partsSummary } from "@/lib/bench/note-view";
 import { NOTE_TAG_LABELS, STATUS_LABELS, type JobStatus, type NoteTag, type PriceBasis } from "@/lib/jobs/domain";
+import { scrubStoredCustomerName } from "@/lib/jobs/name-scrub";
 
 export type PromptNote = {
   tag: NoteTag | null;
@@ -58,6 +59,7 @@ Price
 
 Privacy
 - You never receive a customer phone number and you must never reveal one. Do not ask for a phone number. Do not repeat one. Do not put one in a reply.
+- You never receive a customer name. Do not ask for a name. If he says a customer's name, use "the customer" and say that you left the name out. Never store a name.
 - Never ask for or store a password, PIN, or passphrase.
 - You never see photo files.
 - You must not message a customer. You cannot text, email, or otherwise contact them. Do not offer to.`;
@@ -84,26 +86,30 @@ function priceLine(scope: PromptScope): string {
   return `Job price: ${pounds(scope.priceGbp)}, ${basis}, ${agreed}.`;
 }
 
+function hide(text: string, customerName: string): string {
+  return scrubStoredCustomerName(text, customerName).text;
+}
+
 export function formatJobContext(scope: PromptScope): string {
+  const name = scope.customerName;
   const notes =
     scope.notes.length === 0
       ? "No notes yet."
       : scope.notes
           .map((note, index) => {
             const tag = note.tag ? `${note.tag} (${NOTE_TAG_LABELS[note.tag]})` : "untagged";
-            return `${index + 1}. [${tag}] ${note.text}`;
+            return `${index + 1}. [${tag}] ${hide(note.text, name)}`;
           })
           .join("\n");
   return [
     "Current job (re-sent every turn; trust this over earlier chat if they differ)",
     `Ref: ${scope.ref}`,
-    `Customer: ${scope.customerName}`,
-    `Device: ${scope.deviceLabel}`,
-    `Reported fault: ${scope.reportedFault}`,
+    `Device: ${hide(scope.deviceLabel, name)}`,
+    `Reported fault: ${hide(scope.reportedFault, name)}`,
     `Status: ${scope.status} (${STATUS_LABELS[scope.status]})`,
-    partsLine(scope.notes),
+    partsLine(scope.notes.map((note) => ({ ...note, text: hide(note.text, name) }))),
     priceLine(scope),
-    `Next move: ${scope.nextMove}`,
+    `Next move: ${hide(scope.nextMove, name)}`,
     "Notes:",
     notes,
   ].join("\n");

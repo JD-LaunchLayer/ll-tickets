@@ -332,6 +332,8 @@ describe("assistant turn", () => {
     assertNoPhone(loaded.model);
     const loadedBlob = JSON.stringify(toolResultValues(loaded.model));
     expect(loadedBlob).toContain("Hinge");
+    expect(loadedBlob).not.toContain("Ada Lovelace");
+    expect(loadedBlob).not.toContain("customer_name");
     expect(loadedBlob).toContain("Ring [omitted] about the hinge");
     expect(promptBlob(loaded.model)).not.toContain(PHONE_DIGITS);
     expect(promptBlob(loaded.model)).not.toContain(STORAGE_PATH);
@@ -346,7 +348,10 @@ describe("assistant turn", () => {
     });
     expect(found.result.ok).toBe(true);
     assertNoPhone(found.model);
-    expect(JSON.stringify(toolResultValues(found.model))).toContain(job.ref);
+    const foundBlob = JSON.stringify(toolResultValues(found.model));
+    expect(foundBlob).toContain(job.ref);
+    expect(foundBlob).not.toContain("Ada Lovelace");
+    expect(foundBlob).not.toContain("customer_name");
   });
 
   it("find_jobs matches the same fault on another model and does not ask the Action API to", async () => {
@@ -389,6 +394,8 @@ describe("assistant turn", () => {
     const blob = JSON.stringify(toolResultValues(model));
     expect(blob).toContain(omen.ref);
     expect(blob).toContain(dell.ref);
+    expect(blob).not.toContain("Jordan Duggins");
+    expect(blob).not.toContain("Test Customer");
     expect(readFileSync("src/lib/actions/handle.ts", "utf8")).not.toContain("findJobsForAsk");
   });
 
@@ -512,6 +519,8 @@ describe("assistant prompt and the Action API", () => {
     expect(prompt).toContain("must never reveal one");
     expect(prompt).toContain("You cannot create a job");
     expect(prompt).toContain("LL-4K7M");
+    expect(prompt).not.toContain("Ada Lovelace");
+    expect(prompt).not.toContain("Customer:");
     expect(prompt).toContain("No power");
     expect(prompt).toContain("finding (Finding)");
     expect(prompt).toContain("Status: diagnosing (Diagnosing)");
@@ -551,6 +560,7 @@ describe("assistant prompt and the Action API", () => {
       notes: [{ tag: "parts", text: "Placeholder logic board - £239", amountGbp: null }],
     });
     expect(prompt).toContain("Status: waiting_on_parts (Waiting on parts)");
+    expect(prompt).not.toContain("Emily Duggins");
     expect(prompt).toContain("Parts total £239 (1 part): Placeholder logic board");
     expect(prompt).toContain("Job price: £239, estimate, not agreed.");
     expect(prompt).toContain("waiting on the logic board");

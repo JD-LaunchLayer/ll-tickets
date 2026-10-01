@@ -3,7 +3,7 @@ import { STATUS_LABELS, type JobStatus } from "@/lib/jobs/domain";
 /**
  * Which status a phone-view note tag should move a job to.
  * Pure. The Action API does not call this: GPT notes go through fileNote in record.ts.
- * Ready, collected and closed never move. The only step back is Quote agreed,
+ * Ready to collect, collected and closed never move. The only step back is Quote agreed,
  * from waiting on the customer to diagnosing.
  */
 const PARTS_FROM: readonly JobStatus[] = ["new", "diagnosing", "waiting_on_customer"];

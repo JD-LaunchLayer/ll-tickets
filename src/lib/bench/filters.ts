@@ -17,6 +17,6 @@ export function filterActiveJobs(rows: BenchListRow[], view: BenchView): BenchLi
 
 export function emptyListMessage(view: BenchView): string {
   if (view === "parts") return "No jobs waiting on parts.";
-  if (view === "ready") return "No jobs ready.";
+  if (view === "ready") return "No jobs ready to collect.";
   return "No jobs on the bench.";
 }

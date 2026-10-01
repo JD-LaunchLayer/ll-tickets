@@ -73,7 +73,7 @@ describe("displayNextMove", () => {
     {
       name: "ready",
       partial: { status: "ready" as const },
-      text: "Ready. Waiting for the customer to collect.",
+      text: "Ready to collect. Waiting for the customer to collect.",
       action: statusAction("Mark collected", "collected"),
     },
     {

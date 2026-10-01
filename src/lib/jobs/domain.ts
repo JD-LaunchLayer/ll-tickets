@@ -49,7 +49,7 @@ export const STATUS_LABELS: Record<JobStatus, string> = {
   diagnosing: "Diagnosing",
   waiting_on_parts: "Waiting on parts",
   waiting_on_customer: "Waiting on the customer",
-  ready: "Ready",
+  ready: "Ready to collect",
   collected: "Collected",
   closed_no_repair: "Closed, no repair",
 };
@@ -76,9 +76,15 @@ export type Job = {
   closedAt: string | null;
 };
 
+/** Stored when the GPT files a job. The column cannot be blank, and the GPT must not record a name. */
+export const UNRECORDED_CUSTOMER = "Not recorded";
+
+export function displayCustomerName(name: string): string {
+  return name.trim() === UNRECORDED_CUSTOMER ? "No name yet" : name;
+}
+
 export type PublicJob = {
   ref: string;
-  customer_name: string;
   device_label: string;
   reported_fault: string;
   status: JobStatus;
@@ -167,7 +173,6 @@ export function closedAtAfterStatusChange(
 export function toPublicJob(job: Job): PublicJob {
   return {
     ref: job.ref,
-    customer_name: job.customerName,
     device_label: job.deviceLabel,
     reported_fault: job.reportedFault,
     status: job.status,
@@ -199,24 +204,22 @@ export function toPublicNote(note: Note): PublicNote {
   };
 }
 
-export function jobEcho(job: Pick<Job, "ref" | "customerName" | "deviceLabel">) {
+export function jobEcho(job: Pick<Job, "ref" | "deviceLabel">) {
   return {
     ref: job.ref,
-    customer_name: job.customerName,
     device_label: job.deviceLabel,
   };
 }
 
 export function summaryLine(input: {
   ref: string;
-  customerName: string;
   deviceLabel: string;
   status: JobStatus;
   nextMove: string;
   lastNoteSummary: string | null;
 }): string {
   const last = input.lastNoteSummary ?? "No notes yet";
-  return `${input.ref} · ${input.customerName} · ${input.deviceLabel} · ${STATUS_LABELS[input.status]} · ${input.nextMove} · ${last}`;
+  return `${input.ref} · ${input.deviceLabel} · ${STATUS_LABELS[input.status]} · ${input.nextMove} · ${last}`;
 }
 
 export function collectKeys(value: unknown, keys: Set<string> = new Set()): Set<string> {

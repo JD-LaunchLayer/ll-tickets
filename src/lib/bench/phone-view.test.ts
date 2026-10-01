@@ -221,7 +221,7 @@ describe("phone view", () => {
     expect(filterActiveJobs(rows, "parts").map((item) => item.ref)).toEqual(["LL-BBBB"]);
     expect(filterActiveJobs(rows, "ready").map((item) => item.ref)).toEqual(["LL-CCCC"]);
     expect(emptyListMessage("parts")).toBe("No jobs waiting on parts.");
-    expect(emptyListMessage("ready")).toBe("No jobs ready.");
+    expect(emptyListMessage("ready")).toBe("No jobs ready to collect.");
   });
 
   it("turns a diagnosis into paragraphs and lists", () => {

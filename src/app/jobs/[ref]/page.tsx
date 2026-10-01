@@ -15,6 +15,7 @@ import { jobPath, listPath, orderedJobRefs, parseFromQuery, placeAriaLabel, plac
 import { filterActiveJobs } from "@/lib/bench/filters";
 import { listBenchJobs, loadBenchJob } from "@/lib/bench/jobs";
 import { displayPhone, telHref } from "@/lib/bench/phone";
+import { displayCustomerName } from "@/lib/jobs/domain";
 import { createPrivatePhotoUrl } from "@/lib/photos/signed-url";
 import { signJobPhotos, type SignedPhoto } from "@/lib/photos/views";
 
@@ -100,7 +101,7 @@ export default async function JobPage({
       />
       <CustomerCard
         key={job.ref}
-        name={job.customerName}
+        name={displayCustomerName(job.customerName)}
         device={job.deviceLabel}
         phone={job.phone ? displayPhone(job.phone) : null}
         call={call}

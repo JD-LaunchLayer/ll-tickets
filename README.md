@@ -8,8 +8,8 @@ British English.
 
 - A job is a ref, a customer name, a device, the reported fault, a status, one next step, an optional price (estimate or quote), backup position, whether access was given, and an optional collection time.
 - Everything else is a note. Edits keep the previous wording.
-- The GPT sees the customer name and the device. It never sees the phone number and never sees photo files.
-- The phone view, after the owner email link, lists active jobs, opens a job, files a note, changes status and the next move, creates a job (with an optional phone number), and adds a photo. Photos are private and removed 12 months after the job closes. Ask the record reads the job and can search past jobs. On a job page the chat applies to that job. A reply is saved only if he taps Save to notes and confirms. The chat thread stays in the browser. The assistant never sees the phone number.
+- The GPT sees the job ref, the device, the fault, the status, the notes, and the price basis. It never sees the customer name, the phone number, or photo files. Jordan enters the name and phone on the phone.
+- The phone view, after the owner email link, lists active jobs, opens a job, files a note, changes status and the next move, creates a job (with the customer name and an optional phone number), and adds a photo. Photos are private and removed 12 months after the job closes. Ask the record reads the job and can search past jobs. On a job page the chat applies to that job. A reply is saved only if he taps Save to notes and confirms. The chat thread stays in the browser. The assistant never sees the customer name or the phone number.
 - The Action API is seven operations, protected by a bearer API key. See `docs/gpt-actions.openapi.json` and `GET /openapi.json`. Ask the record does not replace it.
 
 ## What it is not
